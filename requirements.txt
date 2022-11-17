@@ -1,5 +1,7 @@
- pandas 
- seaborn
- sklearn
- xgboost
- Pillow
+pandas 
+seaborn
+scikit-learn==0.23.2
+xgboost
+Pillow
+pycaret
+
