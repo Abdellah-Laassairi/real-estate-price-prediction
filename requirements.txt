@@ -2,7 +2,7 @@ setuptools
 pandas 
 scikit-learn==0.23.2
 xgboost
-
+optuna
 Pillow
 pycaret
-
+dataprep
