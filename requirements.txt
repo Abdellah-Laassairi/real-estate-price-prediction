@@ -6,3 +6,4 @@ optuna
 Pillow
 pycaret
 dataprep
+category_encoders
