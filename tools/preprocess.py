@@ -7,13 +7,41 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 
-def load_data(filepath):
+def load_data(filepath, add_geodata=False):
     # Loading the Data
     # Raw Loaded data
     X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
     Y_train_raw=pd.read_csv(filepath + 'y_train_OXxrJt1.csv')
 
     X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
+
+    if(add_geodata):
+        places = ["id_annonce", "tourist_attraction","supermarket","political","bank","restaurant", "bus_station", "train_station", "primary_school", "hospital"]
+        
+        X_train_geo=pd.read_pickle(filepath+"X_train_geodata.pkl")
+        X_test_geo=pd.read_pickle(filepath+"X_test_geodata.pkl")
+        
+        # ordering indexes of X_train
+        X_train_geo = X_train_geo.reset_index()
+        X_train_geo = X_train_geo[places]
+        
+        X_train_geo = X_train_geo.set_index('id_annonce')
+        X_train_geo = X_train_geo.reindex(index=X_train_raw['id_annonce'])
+        X_train_geo = X_train_geo.reset_index()
+
+        # Ordering indexes of X_test
+        X_test_geo = X_test_geo.reset_index()
+        X_test_geo = X_test_geo[places]
+
+
+        X_test_geo = X_test_geo.set_index('id_annonce')
+        X_test_geo = X_test_geo.reindex(index=X_test_raw['id_annonce'])
+        X_test_geo = X_test_geo.reset_index()
+    
+        X_train_raw=pd.concat([X_train_raw, X_train_geo], axis=1)
+        X_test_raw=pd.concat([X_test_raw, X_test_geo], axis=1)
+
+
 
     # Droping ids for training
     X_train_0=X_train_raw.drop(columns="id_annonce")
@@ -73,11 +101,11 @@ def knn_impute_all(df, list_columns):
 
 
 def quantile_encoder(df, X_train_0,Y_train_0, X_test_0 , column):
-    city_encoder = ce.quantile_encoder.QuantileEncoder()
+    city_encoder = ce.quantile_encoder.QuantileEncoder(quantile=0.5, m=1.0)
+
     df_city_train=city_encoder.fit_transform(X_train_0[column[0]], Y_train_0["price"])
-    df_city_train
     df_city_test = city_encoder.transform(X_test_0[column[0]])
-    df_city_test
+
     new_city_column =pd.concat([df_city_train, df_city_test], axis=0).reset_index(drop=True)
     df[column[0]]=new_city_column[column[0]]
     return df
@@ -103,10 +131,13 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     data_1=data.drop(columns=parameters["drop_columns"])
 
     # Frequency Encoding
-    data_2=frequency_encoder(data_1,parameters["frequency_encoding"] )
+    if len(parameters["frequency_encoding"])>0:
+        data_2=frequency_encoder(data_1,parameters["frequency_encoding"] )
+    else:
+        data_2 = data_1.copy() 
     
     # Quantile Encoding
-    if len(parameters["quantil_encoding"])>0:
+    if len(parameters["quantile_encoding"])>0:
         data_3=quantile_encoder(data_2,X_train_0, Y_train_0, X_test_0,parameters["quantile_encoding"] )
     else:
         data_3 = data_2.copy()
