@@ -7,3 +7,6 @@ Pillow
 pycaret
 dataprep
 category_encoders
+googlemaps
+geopy
+tqdm

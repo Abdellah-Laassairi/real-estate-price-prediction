@@ -1,6 +1,4 @@
-
 import pandas as pd
-# Target encoding city
 import category_encoders as ce
 from sklearn.neighbors import KNeighborsRegressor
 import numpy as np
@@ -15,34 +13,6 @@ def load_data(filepath, add_geodata=False):
 
     X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
 
-    if(add_geodata):
-        places = ["id_annonce", "tourist_attraction","supermarket","political","bank","restaurant", "bus_station", "train_station", "primary_school", "hospital"]
-        
-        X_train_geo=pd.read_pickle(filepath+"X_train_geodata.pkl")
-        X_test_geo=pd.read_pickle(filepath+"X_test_geodata.pkl")
-        
-        # ordering indexes of X_train
-        X_train_geo = X_train_geo.reset_index()
-        X_train_geo = X_train_geo[places]
-        
-        X_train_geo = X_train_geo.set_index('id_annonce')
-        X_train_geo = X_train_geo.reindex(index=X_train_raw['id_annonce'])
-        X_train_geo = X_train_geo.reset_index()
-
-        # Ordering indexes of X_test
-        X_test_geo = X_test_geo.reset_index()
-        X_test_geo = X_test_geo[places]
-
-
-        X_test_geo = X_test_geo.set_index('id_annonce')
-        X_test_geo = X_test_geo.reindex(index=X_test_raw['id_annonce'])
-        X_test_geo = X_test_geo.reset_index()
-    
-        X_train_raw=pd.concat([X_train_raw, X_train_geo], axis=1)
-        X_test_raw=pd.concat([X_test_raw, X_test_geo], axis=1)
-
-
-
     # Droping ids for training
     X_train_0=X_train_raw.drop(columns="id_annonce")
     Y_train_0=Y_train_raw.drop(columns="id_annonce")
@@ -56,6 +26,38 @@ def load_data(filepath, add_geodata=False):
     return X_train_0, Y_train_0, X_test_0, X_test_ids
 
 
+def add_geo(data, filepath="data/"):
+    X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
+    X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
+
+    places = ["index","num_train_station","num_gas_station", "num_night_club", "num_transit_station"]
+    
+    #places = ["id_annonce", "hospital"]
+    X_train_geo=pd.read_pickle(filepath+"geodata/X_train_geodata.pkl")
+    X_test_geo=pd.read_pickle(filepath+"geodata/X_test_geodata.pkl")
+    
+    # ordering indexes of X_train
+    X_train_geo = X_train_geo.reset_index()
+    X_train_geo = X_train_geo[places]
+    
+    X_train_geo = X_train_geo.set_index('index')
+    X_train_geo = X_train_geo.reindex(index=X_train_raw['id_annonce'])
+    X_train_geo = X_train_geo.reset_index()
+
+    # Ordering indexes of X_test
+    X_test_geo = X_test_geo.reset_index()
+    X_test_geo = X_test_geo[places]
+
+
+    X_test_geo = X_test_geo.set_index('index')
+    X_test_geo = X_test_geo.reindex(index=X_test_raw['id_annonce'])
+    X_test_geo = X_test_geo.reset_index()
+
+    data_geo=pd.concat([X_train_geo, X_test_geo], axis=0)
+    data_geo = data_geo.reset_index(drop=True)
+    data_geo=data_geo.drop(["id_annonce"], axis=1)
+    data = data.reset_index(drop=True)
+    return pd.concat([data, data_geo], axis=1)
 
 #KNN imputation / Try and expirement different imputations
 def knn_impute(df0, column):
@@ -73,7 +75,7 @@ def knn_impute(df0, column):
     # knn_x_train : training data for the missing values
     knn_x_train = numeric_df.loc[numeric_df[column].isna()==False, full_columns]
 
-    # knn_y_train: target data for the missing valies 
+    # knn_y_train: target data for the missing values 
     knn_y_train= numeric_df.loc[numeric_df[column].isna()==False, column]
 
     # knn_x_test : the data with missing values for the target column
@@ -151,6 +153,11 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Additional imputation for floor
     data_5=knn_impute(data_4, "floor")
+
+    # Add geodata
+    if parameters["add_geo"]:
+        data_5=add_geo(data_5)
+    
 
     # Hot encoding
     data_5 = pd.get_dummies(data_5)
