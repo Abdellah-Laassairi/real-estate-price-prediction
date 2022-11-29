@@ -2,7 +2,7 @@ import pandas as pd
 import category_encoders as ce
 from sklearn.neighbors import KNeighborsRegressor
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer
 
 
 def load_data(filepath, add_geodata=False):
@@ -25,20 +25,18 @@ def load_data(filepath, add_geodata=False):
 
     return X_train_0, Y_train_0, X_test_0, X_test_ids
 
-
-def add_geo(data, filepath="data/"):
+def add_geo(data,places, filepath="data/"):
     X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
     X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
 
-    places = ["index","num_train_station","num_gas_station", "num_night_club", "num_transit_station"]
-    
     #places = ["id_annonce", "hospital"]
     X_train_geo=pd.read_pickle(filepath+"geodata/X_train_geodata.pkl")
     X_test_geo=pd.read_pickle(filepath+"geodata/X_test_geodata.pkl")
     
     # ordering indexes of X_train
     X_train_geo = X_train_geo.reset_index()
-    X_train_geo = X_train_geo[places]
+    if len(places)>0:
+        X_train_geo = X_train_geo[places]
     
     X_train_geo = X_train_geo.set_index('index')
     X_train_geo = X_train_geo.reindex(index=X_train_raw['id_annonce'])
@@ -46,7 +44,8 @@ def add_geo(data, filepath="data/"):
 
     # Ordering indexes of X_test
     X_test_geo = X_test_geo.reset_index()
-    X_test_geo = X_test_geo[places]
+    if len(places)>0:
+        X_test_geo = X_test_geo[places]
 
 
     X_test_geo = X_test_geo.set_index('index')
@@ -100,7 +99,6 @@ def knn_impute_all(df, list_columns):
     for column in list_columns:
         df=knn_impute(df,column)
     return df
-
 
 def quantile_encoder(df, X_train_0,Y_train_0, X_test_0 , column):
     city_encoder = ce.quantile_encoder.QuantileEncoder(quantile=0.5, m=1.0)
@@ -156,7 +154,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Add geodata
     if parameters["add_geo"]:
-        data_5=add_geo(data_5)
+        data_5=add_geo(data_5, parameters["geodata"])
     
 
     # Hot encoding
@@ -164,8 +162,22 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Scaling 
     scaler = StandardScaler()
-    scaler.fit(data_5)
-    data_6=pd.DataFrame(scaler.transform(data_5), index=data_5.index, columns=data_5.columns)
+    rbst_scaler=RobustScaler()
+    power_transformer=PowerTransformer()
+
+    if parameters["standard_scaling"]:
+        scaler.fit(data_5)
+        data_s=scaler.transform(data_5)
+
+    if parameters["robust_scaling"]:
+        rbst_scaler.fit(data_5)
+        data_s=rbst_scaler.transform(data_5)
+
+    if parameters["power_scaling"]:
+        power_transformer.fit(data_5)
+        data_s=power_transformer.transform(data_5)
+    
+    data_6=pd.DataFrame(data_s, index=data_5.index, columns=data_5.columns)
 
     # target transformation : 
     Y_train_1=np.log(Y_train_0)["price"]
