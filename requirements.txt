@@ -10,3 +10,6 @@ category_encoders
 googlemaps
 geopy
 tqdm
+xlwt
+opencv-python
+tensorflow
