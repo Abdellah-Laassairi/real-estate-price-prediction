@@ -6,6 +6,8 @@ from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer
 import random
 import numpy as np
 import os
+from sklearn.decomposition import PCA
+
 
 def seed_everything(seed=42):
     """"
@@ -187,6 +189,7 @@ def add_polar_rotation(data):
   '''
   data["rot_45_x"] = (0.707 * data['approximate_latitude']) + (0.707 * data['approximate_longitude'])
   data["rot_45_y"] = (0.707 * data['approximate_longitude']) + (0.707 * data['approximate_latitude'])
+  
   data["rot_30_x"] = (0.866 * data['approximate_latitude']) + (0.5 * data['approximate_longitude'])
   data["rot_30_y"] = (0.866 * data['approximate_longitude']) + (0.5 * data['approximate_latitude'])
   
@@ -196,6 +199,21 @@ def add_polar_coordinates(data):
     data['radius']=np.sqrt((data['approximate_latitude']**2)+(data['approximate_longitude']**2))
     data['angle']=np.arctan2(data['approximate_longitude'],data['approximate_latitude'])
     return data
+
+
+def add_geo_pca(data):
+  '''
+  input: dataframe containing Latitude(x) and Longitude(y)
+  '''
+  coordinates = data[['approximate_latitude','approximate_longitude']].values
+  pca_obj = PCA().fit(coordinates)
+  pca_x = pca_obj.transform(data[['approximate_latitude', 'approximate_longitude']])[:,0]
+  pca_y = pca_obj.transform(data[['approximate_latitude', 'approximate_longitude']])[:,1]
+
+  data["geo_pca_x"]=pca_x
+  data["geo_pca_y"]=pca_y
+  return data
+  
 def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     Data preprocessing pipeline    
@@ -228,9 +246,14 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     if parameters["add_polar_coordinates"]:
         data_3=add_polar_coordinates(data_3)
     
-        # Adding polar coordinates
+    # Adding polar rotation
     if parameters["add_polar_rotation"]:
         data_3=add_polar_rotation(data_3)
+
+    # adding geo pca data based on lat and long
+    if parameters["add_geo_pca"]:
+        data_3=add_geo_pca(data_3)
+
     # impute using images 
     if parameters["images_imputation"]:
         data_3= add_images(data_3, parameters["images_features"])
