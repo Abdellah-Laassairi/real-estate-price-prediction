@@ -3,7 +3,17 @@ import category_encoders as ce
 from sklearn.neighbors import KNeighborsRegressor
 import numpy as np
 from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer
+import random
+import numpy as np
+import os
 
+def seed_everything(seed=42):
+    """"
+    Seed everything.
+    """   
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
 
 def load_data(filepath, add_geodata=False):
     # Loading the Data
@@ -58,6 +68,41 @@ def add_geo(data,places, filepath="data/"):
     data = data.reset_index(drop=True)
     return pd.concat([data, data_geo], axis=1)
 
+
+def add_images(data,features, filepath="data/"):
+    X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
+    X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
+
+    X_train_images=pd.read_pickle(filepath+"images/X_train_images.pkl")
+    X_test_images=pd.read_pickle(filepath+"images/X_test_images.pkl")
+    
+    X_train_images['id_annonce']=pd.to_numeric(X_train_images['id_annonce'])
+
+    X_test_images['id_annonce']=pd.to_numeric(X_test_images['id_annonce'])
+
+    # ordering indexes of X_train
+    X_train_images.set_index("id_annonce", inplace=True)
+    if len(features)>0:
+        X_train_images = X_train_images[features]
+    
+    X_train_images = X_train_images.reindex(index=X_train_raw['id_annonce'])
+
+    # Ordering indexes of X_test
+    X_test_images.set_index("id_annonce", inplace=True)
+    if len(features)>0:
+        X_test_images = X_test_images[features]
+        
+    X_test_images = X_test_images.reindex(index=X_test_raw['id_annonce'])
+
+    data_images=pd.concat([X_train_images, X_test_images], axis=0)
+
+    data_images = data_images.reset_index(drop=True)
+    #data_images=data_images.drop(["id_annonce"])
+    
+    data = data.reset_index(drop=True)
+
+    return pd.concat([data, data_images], axis=1)
+
 #KNN imputation / Try and expirement different imputations
 def knn_impute(df0, column):
     """ 
@@ -100,6 +145,21 @@ def knn_impute_all(df, list_columns):
         df=knn_impute(df,column)
     return df
 
+def images_impute(data_2, drop_images=True):
+
+    y=data_2.loc[data_2["nb_bedrooms"].isna()==True, ["n_Bedroom"]].squeeze()
+    data_2.loc[data_2["nb_bedrooms"].isna()==True, ["nb_bedrooms"]] =y
+
+    y=data_2.loc[data_2["nb_bathrooms"].isna()==True, ["n_Bathroom"]].squeeze()
+    data_2.loc[data_2["nb_bathrooms"].isna()==True, ["nb_bathrooms"]] =y
+
+    # y=data_2.loc[data_2["nb_rooms"].isna()==True, ["n_livingRoom"]].squeeze()
+    # data_2.loc[data_2["nb_rooms"].isna()==True, ["nb_rooms"]] =y
+
+    if(drop_images==True):
+        data_2.drop(["n_Bedroom", "n_Bathroom","n_Backyard","n_Frontyard","n_Kitchen","n_livingRoom" ], inplace=True, axis=1)
+    return data_2
+
 def quantile_encoder(df, X_train_0,Y_train_0, X_test_0 , column):
     city_encoder = ce.quantile_encoder.QuantileEncoder(quantile=0.5, m=1.0)
 
@@ -120,10 +180,16 @@ def frequency_encoder(df, column):
     data_1=df.copy()
     return data_1
 
+
 def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     Data preprocessing pipeline    
     """
+
+    # Fixing seeds
+    seed_everything()
+    
+    
     # Concatenating data
     data = pd.concat([X_train_0, X_test_0], axis=0).reset_index(drop=True)
 
@@ -142,6 +208,11 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     else:
         data_3 = data_2.copy()
 
+
+    # impute using images 
+    if parameters["images_imputation"]:
+        data_3= add_images(data_3, parameters["images_features"])
+        data_3 = images_impute(data_3, True)
     
     # Knn imputation
     data_4 = knn_impute_all(data_3, list_columns=parameters["knn_imputation"])
@@ -156,6 +227,9 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     if parameters["add_geo"]:
         data_5=add_geo(data_5, parameters["geodata"])
     
+    # Adding images
+    if parameters["add_images_data"]:
+        data_5=add_images(data_5, parameters["images_features"])
 
     # Hot encoding
     data_5 = pd.get_dummies(data_5)
