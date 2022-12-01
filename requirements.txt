@@ -11,5 +11,6 @@ googlemaps
 geopy
 tqdm
 xlwt
+xlrd
 opencv-python
 tensorflow
