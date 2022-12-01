@@ -180,7 +180,22 @@ def frequency_encoder(df, column):
     data_1=df.copy()
     return data_1
 
+def add_polar_rotation(data):
+  '''
+  # most frequently used degrees are 30,45,60
+  input: dataframe containing Latitude(x) and Longitude(y)
+  '''
+  data["rot_45_x"] = (0.707 * data['approximate_latitude']) + (0.707 * data['approximate_longitude'])
+  data["rot_45_y"] = (0.707 * data['approximate_longitude']) + (0.707 * data['approximate_latitude'])
+  data["rot_30_x"] = (0.866 * data['approximate_latitude']) + (0.5 * data['approximate_longitude'])
+  data["rot_30_y"] = (0.866 * data['approximate_longitude']) + (0.5 * data['approximate_latitude'])
+  
+  return data
 
+def add_polar_coordinates(data):
+    data['radius']=np.sqrt((data['approximate_latitude']**2)+(data['approximate_longitude']**2))
+    data['angle']=np.arctan2(data['approximate_longitude'],data['approximate_latitude'])
+    return data
 def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     Data preprocessing pipeline    
@@ -208,7 +223,14 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     else:
         data_3 = data_2.copy()
 
-
+    
+    # Adding polar coordinates
+    if parameters["add_polar_coordinates"]:
+        data_3=add_polar_coordinates(data_3)
+    
+        # Adding polar coordinates
+    if parameters["add_polar_rotation"]:
+        data_3=add_polar_rotation(data_3)
     # impute using images 
     if parameters["images_imputation"]:
         data_3= add_images(data_3, parameters["images_features"])
