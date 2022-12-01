@@ -31,7 +31,7 @@ train_path='../data/reduced_images/train/'
 
 test_subs = [ f.path for f in os.scandir(test_path) if f.is_dir() ]
 
-train_subs = [ f.path for f in os.scandir(test_path) if f.is_dir() ]
+train_subs = [ f.path for f in os.scandir(train_path) if f.is_dir() ]
 
 # INPUT_IMG_PATH_LIST_FILE = 'val_list.txt'
 
