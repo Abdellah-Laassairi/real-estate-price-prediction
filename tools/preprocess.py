@@ -7,6 +7,9 @@ import random
 import numpy as np
 import os
 from sklearn.decomposition import PCA
+from tools.selector import *
+
+
 
 
 def seed_everything(seed=42):
@@ -37,13 +40,35 @@ def load_data(filepath, add_geodata=False):
 
     return X_train_0, Y_train_0, X_test_0, X_test_ids
 
-def add_geo(data,places, filepath="data/"):
+
+def rev_sigmoid(x):
+    if x == 5000 :
+        return 5000
+    return 2/(1+np.exp(0.9*x/1000))
+
+def add_geo(data,places,apply_pca, filepath="data/"):
     X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
     X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
 
-    #places = ["id_annonce", "hospital"]
     X_train_geo=pd.read_pickle(filepath+"geodata/X_train_geodata.pkl")
     X_test_geo=pd.read_pickle(filepath+"geodata/X_test_geodata.pkl")
+
+    for i in X_train_geo.columns :
+        if "num" in i :
+            X_train_geo[i]= X_train_geo[i].apply(lambda x: rev_sigmoid(x))
+            X_test_geo[i]= X_test_geo[i].apply(lambda x: rev_sigmoid(x))
+    X_train_geo=X_train_geo.replace([5000], 0)
+    X_test_geo=X_test_geo.replace([5000], 0)
+
+    for i in  X_train_geo.columns :
+        if not "num" in i and not "rating" in i:
+            X_train_geo.drop(inplace=True, columns=i)
+            X_test_geo.drop(inplace=True, columns=i)
+
+    # Dropping features with multicolinarity / low importance : 
+    columns_to_drope=["num_point_of_interest","num_sublocality_level_1","num_place_of_worship","num_supermarket","num_campground","num_local_government_office",]
+    X_train_geo.drop(inplace=True, columns=columns_to_drope)
+    X_test_geo.drop(inplace=True,columns=columns_to_drope)
     
     # ordering indexes of X_train
     X_train_geo = X_train_geo.reset_index()
@@ -67,10 +92,18 @@ def add_geo(data,places, filepath="data/"):
     data_geo=pd.concat([X_train_geo, X_test_geo], axis=0)
     data_geo = data_geo.reset_index(drop=True)
     data_geo=data_geo.drop(["id_annonce"], axis=1)
+
+    if apply_pca:
+        pca = PCA(n_components=2, svd_solver='full')
+        pca.fit(data_geo)
+        # fs= FeatureSelector(data = train, labels = target)
+        # data_geo = fs.remove(methods = 'all')
+
     data = data.reset_index(drop=True)
-    return pd.concat([data, data_geo], axis=1)
+    data = pd.concat([data, data_geo], axis=1)
 
-
+    return data
+    
 def add_images(data,features, filepath="data/"):
     X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
     X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
@@ -104,6 +137,53 @@ def add_images(data,features, filepath="data/"):
     data = data.reset_index(drop=True)
 
     return pd.concat([data, data_images], axis=1)
+
+def add_quality(data, filepath="data/"):
+    
+    print("loaded raw data")
+    X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
+    X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
+
+    print("loaded quality image data")
+    X_train_quality=pd.read_pickle(filepath+"X_train_quality.pkl")
+    X_test_quality=pd.read_pickle(filepath+"X_test_quality.pkl")
+    
+    print("Converted id to numeric")
+    X_train_quality['id_annonce']=pd.to_numeric(X_train_quality['id_annonce'])
+    X_test_quality['id_annonce']=pd.to_numeric(X_test_quality['id_annonce'])
+
+    X_train_quality.drop(inplace=True, columns ="image_id")
+    X_test_quality.drop(inplace=True, columns ="image_id")
+
+    print(X_train_quality.columns)
+    print(X_test_quality.columns)
+
+    print("Grouping min score")
+    X_train_quality = X_train_quality.groupby('id_annonce').min()
+    X_test_quality = X_test_quality.groupby('id_annonce').min()
+     
+
+    print("Reordering indexes")
+    # ordering indexes of X_train    
+    X_train_quality = X_train_quality.reindex(index=X_train_raw['id_annonce'])
+
+    # Ordering indexes of X_test
+    X_test_quality = X_test_quality.reindex(index=X_test_raw['id_annonce'])
+
+    print("Concat Xtest and Xtrain")
+
+    data_images=pd.concat([X_train_quality, X_test_quality], axis=0)
+
+    print("Removing index")
+
+    data_images = data_images.reset_index(drop=True)
+    
+    data = data.reset_index(drop=True)
+
+    final = pd.concat([data, data_images], axis=1)
+
+    print(final.columns)
+    return final
 
 #KNN imputation / Try and expirement different imputations
 def knn_impute(df0, column):
@@ -200,7 +280,6 @@ def add_polar_coordinates(data):
     data['angle']=np.arctan2(data['approximate_longitude'],data['approximate_latitude'])
     return data
 
-
 def add_geo_pca(data):
   '''
   input: dataframe containing Latitude(x) and Longitude(y)
@@ -213,71 +292,100 @@ def add_geo_pca(data):
   data["geo_pca_x"]=pca_x
   data["geo_pca_y"]=pca_y
   return data
-  
+
+
 def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     Data preprocessing pipeline    
     """
 
     # Fixing seeds
+    print("Fixing seeds")
     seed_everything()
     
     
     # Concatenating data
+    print("Concatenated Data")
     data = pd.concat([X_train_0, X_test_0], axis=0).reset_index(drop=True)
 
     # Dropping columns
-    data_1=data.drop(columns=parameters["drop_columns"])
+    print("Dropping columns")
+
+    data=data.drop(columns=parameters["drop_columns"])
 
     # Frequency Encoding
     if len(parameters["frequency_encoding"])>0:
-        data_2=frequency_encoder(data_1,parameters["frequency_encoding"] )
-    else:
-        data_2 = data_1.copy() 
+        print("Applying frequency encoding")
+        for i in parameters["frequency_encoding"]:
+            data=frequency_encoder(data,[i])
+
     
     # Quantile Encoding
     if len(parameters["quantile_encoding"])>0:
-        data_3=quantile_encoder(data_2,X_train_0, Y_train_0, X_test_0,parameters["quantile_encoding"] )
-    else:
-        data_3 = data_2.copy()
+        print("Applying Quantile encoding")
+        data=quantile_encoder(data,X_train_0, Y_train_0, X_test_0,parameters["quantile_encoding"] )
 
     
     # Adding polar coordinates
     if parameters["add_polar_coordinates"]:
-        data_3=add_polar_coordinates(data_3)
+        print("Adding polar coordinates")
+        data=add_polar_coordinates(data)
     
     # Adding polar rotation
     if parameters["add_polar_rotation"]:
-        data_3=add_polar_rotation(data_3)
+        print("Adding polar rotation")
+        data=add_polar_rotation(data)
 
     # adding geo pca data based on lat and long
     if parameters["add_geo_pca"]:
-        data_3=add_geo_pca(data_3)
+        print("Adding Geo PCA")
+        data=add_geo_pca(data)
+    
+
 
     # impute using images 
     if parameters["images_imputation"]:
-        data_3= add_images(data_3, parameters["images_features"])
-        data_3 = images_impute(data_3, True)
+        print("Using image feature extraction imputation")
+        data= add_images(data, parameters["images_features"])
+        data = images_impute(data, True)
     
     # Knn imputation
-    data_4 = knn_impute_all(data_3, list_columns=parameters["knn_imputation"])
+    if len(parameters["knn_imputation"]) >0 :
+        print("Using KNN imputation")
+        data = knn_impute_all(data, list_columns=parameters["knn_imputation"])
     
-    # Constant imputation
-    data_4.loc[(data_4['property_type']!="appartement") & data_4['floor'].isna(), 'floor'] = 0
 
+    # Constant imputation
+    data.loc[(data['property_type']!="appartement") & data['floor'].isna(), 'floor'] = 0
+    #data.loc[ data['exposition'].isna(), 'exposition'] = 0
+
+    data = data.copy()
     # Additional imputation for floor
-    data_5=knn_impute(data_4, "floor")
+    if len(parameters["knn_imputation"]) >0 :
+
+        data=knn_impute(data, "floor")
 
     # Add geodata
     if parameters["add_geo"]:
-        data_5=add_geo(data_5, parameters["geodata"])
-    
+        data=add_geo(data, parameters["geodata"], parameters["apply_pca_geo"])
+
+
     # Adding images
     if parameters["add_images_data"]:
-        data_5=add_images(data_5, parameters["images_features"])
+        data=add_images(data, parameters["images_features"])
+    
+
+    # Adding images quality
+    if parameters["add_quality"]:
+        print("Adding image quality")
+        data=add_quality(data)
 
     # Hot encoding
-    data_5 = pd.get_dummies(data_5)
+    if parameters["hot_encoding"]:
+        print("Hot Encoding")
+        data = pd.get_dummies(data)
+
+
 
     # Scaling 
     scaler = StandardScaler()
@@ -285,24 +393,38 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     power_transformer=PowerTransformer()
 
     if parameters["standard_scaling"]:
-        scaler.fit(data_5)
-        data_s=scaler.transform(data_5)
+        print("Standard scaling")
+        data_0=data_2.copy()
+        scaler.fit(data)
+        data=scaler.transform(data)
+        data=pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     if parameters["robust_scaling"]:
-        rbst_scaler.fit(data_5)
-        data_s=rbst_scaler.transform(data_5)
+
+        print("Robust scaling")
+
+        data_0=data.copy()
+
+        rbst_scaler.fit(data)
+        data=rbst_scaler.transform(data)
+        data=pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     if parameters["power_scaling"]:
-        power_transformer.fit(data_5)
-        data_s=power_transformer.transform(data_5)
-    
-    data_6=pd.DataFrame(data_s, index=data_5.index, columns=data_5.columns)
+        print("Power scaling")
+
+        data_0=data.copy()
+        power_transformer.fit(data)
+        data=power_transformer.transform(data)
+        data=pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     # target transformation : 
-    Y_train_1=np.log(Y_train_0)["price"]
+    if parameters["target_transformation"]:
+        Y_train_1=np.log(Y_train_0)["price"]
+    else:
+        Y_train_1=Y_train_0
 
     # Splitting the data back
-    X_train_1=data_6.loc[:X_train_0.index.max(),:]
-    X_test_1=data_6.loc[X_train_0.index.max()+1:,:]
+    X_train_1=data.loc[:X_train_0.index.max(),:]
+    X_test_1=data.loc[X_train_0.index.max()+1:,:]
 
     return X_train_1,Y_train_1, X_test_1
