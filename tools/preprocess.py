@@ -2,7 +2,7 @@ import pandas as pd
 import category_encoders as ce
 from sklearn.neighbors import KNeighborsRegressor
 import numpy as np
-from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer
+from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer, PolynomialFeatures
 import random
 import numpy as np
 import os
@@ -341,8 +341,6 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
         print("Adding Geo PCA")
         data=add_geo_pca(data)
     
-
-
     # impute using images 
     if parameters["images_imputation"]:
         print("Using image feature extraction imputation")
@@ -355,14 +353,18 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
         data = knn_impute_all(data, list_columns=parameters["knn_imputation"])
     
 
-    # Constant imputation
-    data.loc[(data['property_type']!="appartement") & data['floor'].isna(), 'floor'] = 0
-    #data.loc[ data['exposition'].isna(), 'exposition'] = 0
+    # Constant imputation floor
+    if parameters["constant_imputation_floor"]:
+        data.loc[(data['property_type']!="appartement") & data['floor'].isna(), 'floor'] = 0
+    
+    # Constant imputation exposition
+    if parameters["constant_imputation_exposition"]:        
+        data.loc[(data['property_type'] == "péniche") | (data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] ==  "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
+            & (data['exposition'].isna()), 'exposition'] = 0
+        #data.loc[ data['exposition'].isna(), 'exposition'] = 0
 
-    data = data.copy()
     # Additional imputation for floor
     if len(parameters["knn_imputation"]) >0 :
-
         data=knn_impute(data, "floor")
 
     # Add geodata
@@ -385,7 +387,10 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
         print("Hot Encoding")
         data = pd.get_dummies(data)
 
-
+    # Feautures interractions
+    if parameters["features_interactions"]:
+        poly = PolynomialFeatures(2)
+        data=poly.fit_transform(data)
 
     # Scaling 
     scaler = StandardScaler()
@@ -394,7 +399,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     if parameters["standard_scaling"]:
         print("Standard scaling")
-        data_0=data_2.copy()
+        data_0=data.copy()
         scaler.fit(data)
         data=scaler.transform(data)
         data=pd.DataFrame(data, index=data_0.index, columns=data_0.columns)

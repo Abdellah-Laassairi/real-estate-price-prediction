@@ -14,4 +14,5 @@ xlwt
 xlrd
 opencv-python
 tensorflow
-pip install sewar
+sewar
+shap
