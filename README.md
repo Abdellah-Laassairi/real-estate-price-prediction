@@ -4,7 +4,9 @@ This is the project repository for the 2022 Data Challenge As part of (APST) Sta
 
 ##  Installation 
 All the projects requirements and librarires are saved in requirements.txt
-
+```bash
+pip install -r requirements.txt
+```
 
 ## Description
 Institut Louis Bachelier (ILB) is a sponsored research network in Economics and Finance. It is an association as defined by the law of 1901 and was created in 2008 at the instigation of the Treasury and Caisse des Dépôts et Consignations. Through its activities, it aims to involve academics, public authorities and companies in research projects as well as in scientific events and other forums of exchange. The dozens of research projects hosted at ILBfocus on four societal transitions: environmental, digital, demographic and financial.
