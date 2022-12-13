@@ -16,3 +16,7 @@ opencv-python
 tensorflow
 sewar
 shap
+BorutaShap
+FuzzyWuzzy
+
+
