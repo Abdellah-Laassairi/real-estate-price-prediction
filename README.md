@@ -1,17 +1,17 @@
 # Data Challenge 2022
 
-This is the project repository for the 2022 Data Challenge As part of (APST) Statistical Learning course at Ecole Centrale de Nantes and University of Nanats. The final project report is avaialble [at the following link]().
+This is the project repository for the 2022 Data Challenge as part of (APST) Statistical Learning course at Ecole Centrale de Nantes and University of Nantes. The final project report is avaialble [at the following link]().
 
-##  Installation 
-All the projects requirements and librarires are saved in requirements.txt
+## Installation 
+All the projects requirements and libraries are saved in requirements.txt
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Description
-Institut Louis Bachelier (ILB) is a sponsored research network in Economics and Finance. It is an association as defined by the law of 1901 and was created in 2008 at the instigation of the Treasury and Caisse des Dépôts et Consignations. Through its activities, it aims to involve academics, public authorities and companies in research projects as well as in scientific events and other forums of exchange. The dozens of research projects hosted at ILBfocus on four societal transitions: environmental, digital, demographic and financial.
+Institut Louis Bachelier (ILB) is a sponsored research network in Economics and Finance. It is an association as defined by the law of 1901 and was created in 2008 at the instigation of the Treasury and Caisse des Dépôts et Consignations. 
 
-The ILB Datalab is a team of data scientists working alongside researchers of the ILB network on applied research projects for both public and private actors of our economic and financial ecosystem. The ILB datalab recently collected an extensive amount of French real estate data and would like to conduct analyses and experiments with it. This challenge is an opportunity to do so.
+The ILB Datalab is a team of data scientists working alongside researchers of the ILB network on applied research projects for both public and private actors of our economic and financial ecosystem. The ILB datalab recently collected an extensive amount of French real estate data and would like to conduct analyses and experiments with it. 
 
 ## Challenge goals
 
