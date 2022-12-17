@@ -4,7 +4,7 @@ from category_encoders import WOEEncoder, SummaryEncoder
 from sklearn.neighbors import KNeighborsRegressor
 from lightgbm import LGBMRegressor
 import numpy as np
-from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer, PolynomialFeatures, power_transform
+from sklearn.preprocessing import StandardScaler, RobustScaler, PowerTransformer, PolynomialFeatures, power_transform,LabelEncoder
 from sklearn.experimental import enable_iterative_imputer
 from sklearn.impute import SimpleImputer,IterativeImputer
 import random
@@ -113,7 +113,7 @@ def rev_sigmoid(x):
         return 5000
     return 2/(1+np.exp(0.9*x/1000))
 
-def add_geo(data,places,apply_pca, filepath="data/"):
+def add_geo(data,places, filepath="data/"):
     X_train_raw=pd.read_csv(filepath +'X_train_J01Z4CN.csv') 
     X_test_raw=pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
 
@@ -160,12 +160,6 @@ def add_geo(data,places,apply_pca, filepath="data/"):
     data_geo = data_geo.reset_index(drop=True)
     data_geo=data_geo.drop(["id_annonce"], axis=1)
 
-    if apply_pca:
-        pca = PCA(n_components=2, svd_solver='full')
-        pca.fit(data_geo)
-        # fs= FeatureSelector(data = train, labels = target)
-        # data_geo = fs.remove(methods = 'all')
-
     data = data.reset_index(drop=True)
     data = pd.concat([data, data_geo], axis=1)
 
@@ -183,8 +177,8 @@ def add_classification_quality(data,features,threshold=0.5, filepath="data/"):
     X_test_images.loc[X_test_images["SCORE_LABEL"]<threshold, "PREDICTED_LABEL"]="OTHER"
 
     # Aggregating results
-    X_train_images=X_train_images.groupby(['id_annonce','PREDICTED_LABEL']).agg({'image_quality': ['mean', 'min', 'max','count'], 'SCORE_LABEL': ['mean', 'min', 'max','count']}).unstack().reset_index()
-    X_test_images=X_test_images.groupby(['id_annonce','PREDICTED_LABEL']).agg({'image_quality': ['mean', 'min', 'max','count'],'SCORE_LABEL': ['mean', 'min', 'max','count']}).unstack().reset_index()
+    X_train_images=X_train_images.groupby(['id_annonce','PREDICTED_LABEL']).agg({'image_quality': ['mean', 'sum','count']}).unstack().reset_index()
+    X_test_images=X_test_images.groupby(['id_annonce','PREDICTED_LABEL']).agg({'image_quality': ['mean', 'sum','count']}).unstack().reset_index()
 
     # Renaming and flattening index
     X_train_images.columns= ["_".join(a) for a in X_train_images.columns.to_flat_index()]
@@ -247,6 +241,11 @@ def quantile_encoder(df, X_train_0,Y_train_0, X_test_0 , column):
     df.drop('city',axis=1, inplace=True)
     return df
 
+def label_encoder(data, column):
+    le = LabelEncoder()
+    data[column]=le.fit_transform(data[column])
+    return data
+
 def frequency_encoder(df, column):
     L=8643
     fq = df.groupby(column).size()/L
@@ -261,7 +260,7 @@ def frequency_encoder(df, column):
     
     return df
 
-def add_polar_rotation(data):
+def add_polar_rotation(data, geo_population):
   '''
   # most frequently used degrees are 30,45
   input: dataframe containing Latitude(x) and Longitude(y)
@@ -272,6 +271,12 @@ def add_polar_rotation(data):
   data["rot_30_x"] = (0.866 * data['approximate_latitude']) + (0.5 * data['approximate_longitude'])
   data["rot_30_y"] = (0.866 * data['approximate_longitude']) + (0.5 * data['approximate_latitude'])
   
+  if geo_population:
+    data["rot_45_x_city"] = (0.707 * data['lat']) + (0.707 * data['lng'])
+    data["rot_45_y_city"] = (0.707 * data['lng']) + (0.707 * data['lat'])
+    
+    data["rot_30_x_city"] = (0.866 * data['lat']) + (0.5 * data['lng'])
+    data["rot_30_y_city"] = (0.866 * data['lng']) + (0.5 * data['lat'])
 
   return data
 
@@ -294,21 +299,24 @@ def add_geopopulation(data):
     data['lat'] = data.apply(lat,axis=1)
 
 
-    data['capital'] = data.apply(capital,axis=1)
+    #data['capital'] = data.apply(capital,axis=1)
 
-    data['population'] = data.apply(population,axis=1)
+    #data['population'] = data.apply(population,axis=1)
 
-    data['population_proper'] = data.apply(population_proper,axis=1)
+    #data['population_proper'] = data.apply(population_proper,axis=1)
 
     data.drop(columns=['df2_name'], inplace=True)
     return data
 
-def add_polar_coordinates(data):
+def add_polar_coordinates(data, geo_population):
     data['radius']=np.sqrt((data['approximate_latitude']**2)+(data['approximate_longitude']**2))
     data['angle']=np.arctan2(data['approximate_longitude'],data['approximate_latitude'])
+    if geo_population:
+        data['radius_city']=np.sqrt((data['lat']**2)+(data['lng']**2))
+        data['angle_city']=np.arctan2(data['lng'],data['lat'])
     return data
 
-def add_geo_pca(data):
+def add_geo_pca(data,geo_population):
   '''
   input: dataframe containing Latitude(x) and Longitude(y)
   '''
@@ -319,6 +327,16 @@ def add_geo_pca(data):
 
   data["geo_pca_x"]=pca_x
   data["geo_pca_y"]=pca_y
+
+  if geo_population:
+    print("fix nan later")
+    # coordinates = data[['lat','lng']].values
+    # pca_obj = PCA().fit(coordinates)
+    # pca_x = pca_obj.transform(data[['lat', 'lng']])[:,0]
+    # pca_y = pca_obj.transform(data[['lat', 'lng']])[:,1]
+
+    # data["geo_pca_x_city"]=pca_x
+    # data["geo_pca_y_city"]=pca_y
   return data
 
 def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
@@ -362,51 +380,62 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
             data[i] = data[i].apply(str)
             data=frequency_encoder(data,[i]) 
     
+    # Label Encoding
+    if len(parameters["label_encoding"])>0:
+        for i in parameters["label_encoding"]:
+            data[i] = data[i].apply(str)
+            data=label_encoder(data,i) 
+
     # Quantile Encoding
     if len(parameters["quantile_encoding"])>0:
         data=quantile_encoder(data,X_train_0, Y_train_0, X_test_0,parameters["quantile_encoding"] )
 
     # Adding polar coordinates
     if parameters["add_polar_coordinates"]:
-        data=add_polar_coordinates(data)
+        data=add_polar_coordinates(data, parameters["add_geopopulation"])
     
     # Adding polar rotation
     if parameters["add_polar_rotation"]:
-        data=add_polar_rotation(data)
+        data=add_polar_rotation(data,parameters["add_geopopulation"])
 
     # adding geo pca data based on lat and long
     if parameters["add_geo_pca"]:
-        data=add_geo_pca(data)
+        data=add_geo_pca(data,parameters["add_geopopulation"])
     
-    # Constant imputation floor & other
+    # Constant imputation floor 
     if parameters["constant_imputation_floor"]:
-        data.loc[(data['property_type']!="appartement") & (data['property_type']!="chambre") & data['floor'].isna(), 'floor'] = 0
-    if parameters["constant_imputation_rest"] :  
-        # data.loc[(data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] ==  "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
-        #     & (data['nb_bathrooms'].isna()), 'nb_bathrooms'] = 0
-        
-        # data.loc[(data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] ==  "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
-        #     & (data['nb_bedrooms'].isna()), 'nb_bedrooms'] = 0
-        
-        data.loc[(data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] ==  "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
-            & (data['energy_performance_value'].isna()), 'energy_performance_value'] = 0
+        data.loc[(data['property_type'] != "appartement") & (data['property_type'] != "chambre") 
+        & data['floor'].isna(), 'floor'] = 0
 
-        data.loc[(data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] ==  "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
+    # Constant imputation land size
+    if parameters["constant_land_size"] :  
+        data.loc[(data['property_type'] == "chambre") |(data['property_type'] == "péniche") |(data['property_type'] == "duplex")
+            & (data['land_size'].isna()), 'land_size'] = 0  
+
+    # constant imputation energy value
+    if parameters["constant_energy_performance_value"] :  
+        data.loc[(data['property_type'] == "terrain") |(data['property_type'] == "péniche") |(data['property_type'] == "hôtel particulier")
+            & (data['energy_performance_value'].isna()), 'energy_performance_value'] = 0  
+
+    # constant imputation ghg value
+    if parameters["constant_ghg_value"] :  
+        data.loc[ (data['property_type'] == "terrain à bâtir" )|( data['property_type'] ==  "péniche")| (data['property_type'] == "hôtel particulier") 
             & (data['ghg_value'].isna()), 'ghg_value'] = 0   
     
-        # data.loc[(data['property_type'] == "péniche") | ( data['property_type'] == "viager") |(data['property_type'] == "chambre") |(data['property_type'] == "appartement") 
-        #     & (data['land_size'].isna()), 'land_size'] = 0   
+    # constant imputation bedrooms
+    if parameters["constant_imputation_bedrooms"] :  
+        data.loc[(data['property_type'] == "chambre") &
+         (data['nb_bedrooms'].isna()), 'nb_bedrooms'] = 0
     
     # Constant imputation exposition
     if parameters["constant_imputation_exposition"]:        
-        data.loc[(data['property_type'] == "péniche") | (data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] ==  "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
+        data.loc[(data['property_type'] == "péniche") | (data['property_type'] == "propriété") | (data['property_type'] == "parking" )| (data['property_type'] == "terrain")|( data['property_type'] == "terrain à bâtir")|( data['property_type'] == "viager")| (data['property_type'] == "divers") 
             & (data['exposition'].isna()), 'exposition'] = 0
-
 
 
     # Add geodata
     if parameters["add_geo"]:
-        data=add_geo(data, parameters["geodata"], parameters["apply_pca_geo"])
+        data=add_geo(data, parameters["geodata"])
 
     
     # Adding images classification and quality
