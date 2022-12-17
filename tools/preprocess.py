@@ -31,13 +31,22 @@ import pandas as pd
 import fuzzywuzzy.process as fwp
 from unidecode import unidecode
 
+def standards2(row): 
+    row["Nom Commune"]=str(row["Nom Commune"])
+    result=unidecode(row["Nom Commune"].lower())
+    return result
 
 def standards(row): 
     result=unidecode(row.city.lower())
     return result
 
+
 fr=pd.read_csv('data/fr.csv') 
 fr['city'] = fr.apply(standards,axis=1)
+
+fr2 = pd.read_excel("data/Niveau_de_vie_2013_a_la_commune-Global_Map_Solution.xlsx")
+fr2['Nom Commune'] = fr2.apply(standards2,axis=1)
+
 with open('data/city_names.json') as f:
     database = json.load(f)
 
@@ -55,7 +64,19 @@ def population(row):
         return None
     else :
         return fr.loc[fr['city']==row.df2_name, 'population'].values[0]
-    
+
+
+def nvc(row): 
+    if  len(fr2.loc[fr2['Nom Commune']==row.df3_name, 'Niveau de vie Commune'].values)<1:
+        return None
+    else :
+        return fr2.loc[fr2['Nom Commune']==row.df3_name, 'Niveau de vie Commune'].values[0]
+def nvd(row): 
+    if  len(fr2.loc[fr2['Nom Commune']==row.df3_name, 'Niveau de vie Département'].values)<1:
+        return None
+    else :
+        return fr2.loc[fr2['Nom Commune']==row.df3_name, 'Niveau de vie Département'].values[0]
+
 def population_proper(row):
     if  len(fr.loc[fr['city']==row.df2_name, 'population_proper'].values)<1:
         return None
@@ -67,7 +88,6 @@ def lng(row):
         return None
     else :
         return fr.loc[fr['city']==row.df2_name, 'lng'].values[0]
-
 
 def lat(row):
     if  len(fr.loc[fr['city']==row.df2_name, 'lat'].values)<1:
@@ -293,11 +313,14 @@ def add_distance_to_center(data):
     data['new_distance']=data.apply(lambda row : haversine_dist(row["approximate_latitude"],row["approximate_longitude"], row["lat"], row["lng"] ), axis=1)
     return data
 
-def add_geopopulation(data):
-    data['df2_name'] = data.apply(fmatch,axis=1)
-    data['lng'] = data.apply(lng,axis=1)
-    data['lat'] = data.apply(lat,axis=1)
-
+def add_geopopulation_2(data):
+    # data['df2_name'] = data.apply(fmatch,axis=1)
+    # data['lng'] = data.apply(lng,axis=1)
+    # data['lat'] = data.apply(lat,axis=1)
+    
+    data['df3_name'] = data.apply(fmatch,axis=1)
+    data['nvc'] = data.apply(nvc,axis=1)
+    data['nvd'] = data.apply(nvd,axis=1)
 
     #data['capital'] = data.apply(capital,axis=1)
 
@@ -305,15 +328,28 @@ def add_geopopulation(data):
 
     #data['population_proper'] = data.apply(population_proper,axis=1)
 
-    data.drop(columns=['df2_name'], inplace=True)
+    data.drop(columns=['df3_name'], inplace=True)
     return data
 
+def add_geopopulation(data):
+    data['df2_name'] = data.apply(fmatch,axis=1)
+    data['lng'] = data.apply(lng,axis=1)
+    data['lat'] = data.apply(lat,axis=1)
+
+    #data['capital'] = data.apply(capital,axis=1)
+
+    #data['population'] = data.apply(population,axis=1)
+
+    #data['population_proper'] = data.apply(population_proper,axis=1)
+
+    data.drop(columns=['df3_name'], inplace=True)
+    return data
 def add_polar_coordinates(data, geo_population):
     data['radius']=np.sqrt((data['approximate_latitude']**2)+(data['approximate_longitude']**2))
     data['angle']=np.arctan2(data['approximate_longitude'],data['approximate_latitude'])
-    if geo_population:
-        data['radius_city']=np.sqrt((data['lat']**2)+(data['lng']**2))
-        data['angle_city']=np.arctan2(data['lng'],data['lat'])
+    # if geo_population:
+    #     data['radius_city']=np.sqrt((data['lat']**2)+(data['lng']**2))
+    #     data['angle_city']=np.arctan2(data['lng'],data['lat'])
     return data
 
 def add_geo_pca(data,geo_population):
@@ -366,6 +402,9 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     # Adding geopopulation data
     if parameters["add_geopopulation"]:
         data = add_geopopulation(data)
+
+    if parameters["add_geopopulation_2"]:
+        data = add_geopopulation_2(data)
 
     # Dropping columns
     data=data.drop(columns=parameters["drop_columns"])
