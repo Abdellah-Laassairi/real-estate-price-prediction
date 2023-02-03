@@ -19,4 +19,5 @@ The project is a regression task that deals with real estate price estimation. E
 
 The objective is thus to work on modelling French housing real estate prices based on usual hierarchical tabular data and, a few photos (between 1 and 6) for each asset and see if it allows better performance than a model trained without the photos.
 
-We will value results interpretability to get a better understanding about the valuable features.
+The inference pipeline looks as follows :
+![](docs/inference.png)
