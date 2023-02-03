@@ -65,7 +65,6 @@ def population(row):
     else :
         return fr.loc[fr['city']==row.df2_name, 'population'].values[0]
 
-
 def nvc(row): 
     if  len(fr2.loc[fr2['Nom Commune']==row.df3_name, 'Niveau de vie Commune'].values)<1:
         return None
@@ -314,19 +313,10 @@ def add_distance_to_center(data):
     return data
 
 def add_geopopulation_2(data):
-    # data['df2_name'] = data.apply(fmatch,axis=1)
-    # data['lng'] = data.apply(lng,axis=1)
-    # data['lat'] = data.apply(lat,axis=1)
     
     data['df3_name'] = data.apply(fmatch,axis=1)
     data['nvc'] = data.apply(nvc,axis=1)
     data['nvd'] = data.apply(nvd,axis=1)
-
-    #data['capital'] = data.apply(capital,axis=1)
-
-    #data['population'] = data.apply(population,axis=1)
-
-    #data['population_proper'] = data.apply(population_proper,axis=1)
 
     data.drop(columns=['df3_name'], inplace=True)
     return data
@@ -336,20 +326,21 @@ def add_geopopulation(data):
     data['lng'] = data.apply(lng,axis=1)
     data['lat'] = data.apply(lat,axis=1)
 
-    #data['capital'] = data.apply(capital,axis=1)
+    data['capital'] = data.apply(capital,axis=1)
 
-    #data['population'] = data.apply(population,axis=1)
+    data['population'] = data.apply(population,axis=1)
 
-    #data['population_proper'] = data.apply(population_proper,axis=1)
+    data['population_proper'] = data.apply(population_proper,axis=1)
 
     data.drop(columns=['df3_name'], inplace=True)
     return data
+
 def add_polar_coordinates(data, geo_population):
     data['radius']=np.sqrt((data['approximate_latitude']**2)+(data['approximate_longitude']**2))
     data['angle']=np.arctan2(data['approximate_longitude'],data['approximate_latitude'])
-    # if geo_population:
-    #     data['radius_city']=np.sqrt((data['lat']**2)+(data['lng']**2))
-    #     data['angle_city']=np.arctan2(data['lng'],data['lat'])
+    if geo_population:
+        data['radius_city']=np.sqrt((data['lat']**2)+(data['lng']**2))
+        data['angle_city']=np.arctan2(data['lng'],data['lat'])
     return data
 
 def add_geo_pca(data,geo_population):
