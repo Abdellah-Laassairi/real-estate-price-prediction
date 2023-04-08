@@ -15,7 +15,6 @@ from tools.selector import *
 import json
 from sklearn.model_selection import KFold
 from tools.encoders import *
-import Geohash as gh
 from sklearn.cluster import KMeans
 
     
