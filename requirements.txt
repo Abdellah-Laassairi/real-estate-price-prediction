@@ -1,5 +1,5 @@
 setuptools
-pandas 
+pandas
 xgboost
 optuna
 Pillow
@@ -14,10 +14,14 @@ geopy
 tqdm
 xlwt
 xlrd
-tensorflow
+torch
+torchvision
+lightning
+efficientnet_pytorch
 sewar
 shap
 BorutaShap
 FuzzyWuzzy
 openpyxl
 clearml
+pre-commit
