@@ -2,14 +2,14 @@
 seed_everything: true
 trainer:
   accelerator: auto
-  strategy: auto
+  strategy: ddp_find_unused_parameters_true
   devices: auto
   num_nodes: 1
   precision: 16
   logger: null
   callbacks: null
   fast_dev_run: false
-  max_epochs: 10
+  max_epochs: 20
   min_epochs: 1
   max_steps: 100000
   min_steps: null
@@ -41,19 +41,19 @@ trainer:
   reload_dataloaders_every_n_epochs: 0
   default_root_dir: null
 model:
-  num_target_classes: 4176
-  arch: efficientnet-b0
-  lr: 0.1
-  weight_decay: 0.01
-  batch_size: 1
-  max_epochs: 10
+  num_target_classes: 1000 #4176
+  arch: efficientnet-b1
+  lr: 8e-6
+  weight_decay: 2e-5
+  batch_size: 2
+  max_epochs: 20
 data:
   train_src: /home/alaassairi/classif/data/reduced_images/train
   cache_path: /home/alaassairi/classif/
-  batch_size: 1
+  batch_size: 2
   reuse_cache: false
   nworkers: 10
-  test_size: 0.1
+  test_size: 0.2
   seed: 42
   verbose: true
 ckpt_path: null
