@@ -1,8 +1,5 @@
 from lightning import Trainer
 from lightning.pytorch.cli import LightningCLI
-from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader
-from torch.utils.data import Subset
 
 from models.model import *
 from pre.images import *
@@ -12,8 +9,17 @@ SEED = 42
 
 if __name__ == '__main__':
 
-    LightningCLI(model_class=Model,
-                 datamodule_class=RealDataset,
+    # model = RealModel(
+
+    # )
+    # trainer = pl.Trainer(fast_dev_run=5,
+    #                     devices=3,
+    #                     accelerator="gpu",
+    #                     train_dataloader=,
+    #                     val_dataloader=,
+    #                     )
+    # trainer.fit(model)
+    LightningCLI(model_class=RealModel,
+                 datamodule_class=RealDataModule,
                  trainer_class=Trainer,
-                 save_config_overwrite=True,
                  run=True)
