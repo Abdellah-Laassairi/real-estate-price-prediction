@@ -1,0 +1,87 @@
+drop_columns :
+  - "energy_performance_category"
+  - "ghg_category"
+  # - "property_type"
+  # - "city"
+  # - "floor"
+  # - "last_floor"
+  # - "upper_floors"
+  # - "postal_code"
+  # - "nb_boxes"
+  # - "nb_photos"
+  # - has_air_conditioning
+encoding :
+  frequency_encoding :
+    - "city"
+  quantile_encoding : null
+  label_encoding : null
+  target_encoding : null
+  hot_encoding: True
+imputation :
+  constant_imputation :
+    constant_floor: False
+    constant_land_size: False
+    constant_energy_performance_value: False
+    constant_ghg_value: False
+    constant_bedrooms: False
+    constant_exposition: False
+  iter_imputation: False
+  mean_imputation: False
+  mini_imputation: False
+polar :
+  add_polar_coordinates: True
+  add_polar_rotation:
+    - 10
+    - 30
+    - 45
+    - 60
+    - 70
+    - 90
+    - 145
+    - 180
+  add_polar_pca: True
+  add_exposition_orientation: False
+geo:
+  add_geopopulation: False
+  add_geopopulation_2: False
+  add_distance_to_city_center: False
+  add_geo: True
+  geodata :
+    - index
+    - "num_train_station"
+    - "num_night_club"
+    - "num_gas_station"
+    - "user_ratings_total"
+images:
+  nima :
+    add_classification_quality: False
+    classification_threshold: 0
+    images_features: null
+  caption :
+    add_captions: True
+    vectorize_all: False
+    max_features: 0
+    has_items:
+      - "pool"
+      - "luxury"
+      # - "parking"
+      # - "million"
+      # - "balcony" no
+      # - "garden" not this
+      # - "ocean" # don't add
+    count_items:
+      - "bathroom"
+      - "bedroom"
+      - "living"
+      - "villa"
+      # - "kitchen"
+      # - "dining" # don't add
+
+
+feature_transformation: False
+features_interactions: False
+scaling :
+  standard_scaling: False
+  robust_scaling: True
+  power_scaling: False
+target_transformation: True
