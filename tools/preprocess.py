@@ -3,14 +3,18 @@ import os
 import random
 
 import category_encoders as ce
+import fuzzywuzzy.process as fwp
 import numpy as np
 import pandas as pd
+import yaml
 from category_encoders import SummaryEncoder
 from category_encoders import WOEEncoder
 from lightgbm import LGBMRegressor
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.impute import IterativeImputer
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import KFold
@@ -21,9 +25,34 @@ from sklearn.preprocessing import power_transform
 from sklearn.preprocessing import PowerTransformer
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import StandardScaler
+from unidecode import unidecode
+from yaml.loader import SafeLoader
 
 from tools.encoders import *
+from tools.lema import *
 from tools.selector import *
+
+FR_PATH = 'data/other/fr.csv'
+NV_PATH = 'data/other/Niveau_de_vie_2013_a_la_commune-Global_Map_Solution.xlsx'
+CITIES_PATH = 'data/other/city_names.json'
+
+
+def standards(row):
+    result = unidecode(row.city.lower())
+    return result
+
+
+def standards2(row):
+    row['Nom Commune'] = str(row['Nom Commune'])
+    result = unidecode(row['Nom Commune'].lower())
+    return result
+
+
+FR = pd.read_csv(FR_PATH)
+FR['city'] = FR.apply(standards, axis=1)
+
+NV = pd.read_excel(NV_PATH)
+NV['Nom Commune'] = NV.apply(standards2, axis=1)
 
 
 def seed_everything(seed=42):
@@ -35,30 +64,7 @@ def seed_everything(seed=42):
     np.random.seed(seed)
 
 
-import pandas as pd
-import fuzzywuzzy.process as fwp
-from unidecode import unidecode
-
-
-def standards2(row):
-    row['Nom Commune'] = str(row['Nom Commune'])
-    result = unidecode(row['Nom Commune'].lower())
-    return result
-
-
-def standards(row):
-    result = unidecode(row.city.lower())
-    return result
-
-
-fr = pd.read_csv('data/fr.csv')
-fr['city'] = fr.apply(standards, axis=1)
-
-fr2 = pd.read_excel(
-    'data/Niveau_de_vie_2013_a_la_commune-Global_Map_Solution.xlsx')
-fr2['Nom Commune'] = fr2.apply(standards2, axis=1)
-
-with open('data/city_names.json') as f:
+with open(CITIES_PATH) as f:
     database = json.load(f)
 
 
@@ -67,60 +73,60 @@ def fmatch(row):
 
 
 def capital(row):
-    if len(fr.loc[fr['city'] == row.df2_name, 'capital'].values) < 1:
+    if len(FR.loc[FR['city'] == row.df2_name, 'capital'].values) < 1:
         return None
     else:
-        return fr.loc[fr['city'] == row.df2_name, 'capital'].values[0]
+        return FR.loc[FR['city'] == row.df2_name, 'capital'].values[0]
 
 
 def population(row):
-    if len(fr.loc[fr['city'] == row.df2_name, 'population'].values) < 1:
+    if len(FR.loc[FR['city'] == row.df2_name, 'population'].values) < 1:
         return None
     else:
-        return fr.loc[fr['city'] == row.df2_name, 'population'].values[0]
+        return FR.loc[FR['city'] == row.df2_name, 'population'].values[0]
 
 
 def nvc(row):
-    if (len(fr2.loc[fr2['Nom Commune'] == row.df3_name,
-                    'Niveau de vie Commune'].values) < 1):
+    if (len(NV.loc[NV['Nom Commune'] == row.df3_name,
+                   'Niveau de vie Commune'].values) < 1):
         return None
     else:
-        return fr2.loc[fr2['Nom Commune'] == row.df3_name,
-                       'Niveau de vie Commune'].values[0]
+        return NV.loc[NV['Nom Commune'] == row.df3_name,
+                      'Niveau de vie Commune'].values[0]
 
 
 def nvd(row):
-    if (len(fr2.loc[fr2['Nom Commune'] == row.df3_name,
-                    'Niveau de vie Département'].values) < 1):
+    if (len(NV.loc[NV['Nom Commune'] == row.df3_name,
+                   'Niveau de vie Département'].values) < 1):
         return None
     else:
-        return fr2.loc[fr2['Nom Commune'] == row.df3_name,
-                       'Niveau de vie Département'].values[0]
+        return NV.loc[NV['Nom Commune'] == row.df3_name,
+                      'Niveau de vie Département'].values[0]
 
 
 def population_proper(row):
-    if len(fr.loc[fr['city'] == row.df2_name, 'population_proper'].values) < 1:
+    if len(FR.loc[FR['city'] == row.df2_name, 'population_proper'].values) < 1:
         return None
     else:
-        return fr.loc[fr['city'] == row.df2_name,
+        return FR.loc[FR['city'] == row.df2_name,
                       'population_proper'].values[0]
 
 
 def lng(row):
-    if len(fr.loc[fr['city'] == row.df2_name, 'lng'].values) < 1:
+    if len(FR.loc[FR['city'] == row.df2_name, 'lng'].values) < 1:
         return None
     else:
-        return fr.loc[fr['city'] == row.df2_name, 'lng'].values[0]
+        return FR.loc[FR['city'] == row.df2_name, 'lng'].values[0]
 
 
 def lat(row):
-    if len(fr.loc[fr['city'] == row.df2_name, 'lat'].values) < 1:
+    if len(FR.loc[FR['city'] == row.df2_name, 'lat'].values) < 1:
         return None
     else:
-        return fr.loc[fr['city'] == row.df2_name, 'lat'].values[0]
+        return FR.loc[FR['city'] == row.df2_name, 'lat'].values[0]
 
 
-def load_data(filepath, add_geodata=False):
+def load_data(filepath, drop_ids=True):
     # Loading the Data
 
     # Raw Loaded data
@@ -130,8 +136,13 @@ def load_data(filepath, add_geodata=False):
     X_test_raw = pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
 
     # Droping ids for training
-    X_train_0 = X_train_raw.drop(columns='id_annonce')
-    Y_train_0 = Y_train_raw.drop(columns='id_annonce')
+    if drop_ids:
+        X_train_0 = X_train_raw.drop(columns='id_annonce')
+        Y_train_0 = Y_train_raw.drop(columns='id_annonce')
+
+    else:
+        X_train_0 = X_train_raw
+        Y_train_0 = Y_train_raw
 
     X_test_0 = X_test_raw.drop(columns='id_annonce')
 
@@ -140,14 +151,14 @@ def load_data(filepath, add_geodata=False):
 
     # Saving Test ids for prediction
     X_test_ids = X_test_raw['id_annonce']
-    X_test_ids.to_pickle('data/X_test_ids.pkl')
+    X_test_ids.to_pickle('data/cache/X_test_ids.pkl')
 
     return X_train_0, Y_train_0, X_test_0, X_test_ids
 
 
-def load_hyperparameters(path='models/hyperparameters.json'):
-    with open(path) as f:
-        data = json.load(f)
+def load_hyperparameters(path='models/hyperparameters.yaml'):
+    with open(path, 'r') as f:
+        data = yaml.load(f, Loader=SafeLoader)
     xgb_params = data['xgb_params']
     lgb_params = data['lgb_params']
     cat_params = data['cat_params']
@@ -161,8 +172,8 @@ def rev_sigmoid(x):
 
 
 def add_geo(data, places, filepath='data/'):
-    X_train_raw = pd.read_csv(filepath + 'X_train_J01Z4CN.csv')
-    X_test_raw = pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
+    X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
+    X_test_raw = pd.read_csv(filepath + 'tabular/X_test_BEhvxAN.csv')
 
     X_train_geo = pd.read_pickle(filepath + 'geodata/X_train_geodata.pkl')
     X_test_geo = pd.read_pickle(filepath + 'geodata/X_test_geodata.pkl')
@@ -223,8 +234,8 @@ def add_classification_quality(data,
                                features,
                                threshold=0.5,
                                filepath='data/'):
-    X_train_raw = pd.read_csv(filepath + 'X_train_J01Z4CN.csv')
-    X_test_raw = pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
+    X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
+    X_test_raw = pd.read_csv(filepath + 'tabular/X_test_BEhvxAN.csv')
 
     X_train_images = pd.read_pickle(
         filepath + 'classification_quality/X_train_images_final.pkl')
@@ -281,8 +292,6 @@ def add_classification_quality(data,
 
     data_images = data_images.reset_index(drop=True)
 
-    # data_images=data_images.drop(["id_annonce"])
-
     data = data.reset_index(drop=True)
 
     return pd.concat([data, data_images], axis=1)
@@ -328,29 +337,26 @@ def frequency_encoder(df, column):
     # mapping values to dataframe
     df.loc[:, 'freq_encode'] = df[column[0]].map(fq)
 
-    # df.loc[df["freq_encode"]<0.001, "city"] = "other"
-    # df.drop("freq_encode", inplace=True, axis=1)
-    # drop original column.
     df = df.drop([column[0]], axis=1)
     df = df.rename(columns={'freq_encode': column[0]})
 
     return df
 
 
-def add_polar_rotation(data, geo_population):
+def add_polar_rotation(data, angles, geo_population):
     """
     # most frequently used degrees are 30,45
     input: dataframe containing Latitude(x) and Longitude(y)
     """
-    data['rot_45_x'] = (0.707 * data['approximate_latitude']) + (
-        0.707 * data['approximate_longitude'])
-    data['rot_45_y'] = (0.707 * data['approximate_longitude']) + (
-        0.707 * data['approximate_latitude'])
+    x = data['approximate_latitude']
+    y = data['approximate_longitude']
 
-    data['rot_30_x'] = (0.866 * data['approximate_latitude']) + (
-        0.5 * data['approximate_longitude'])
-    data['rot_30_y'] = (0.866 * data['approximate_longitude']) + (
-        0.5 * data['approximate_latitude'])
+    for angle in angles:
+        cos_angle = np.cos(angle * np.pi / 180)
+        sin_angle = np.sin(angle * np.pi / 180)
+
+        data[f'rot_{angle}_x'] = (cos_angle * x) - (sin_angle * y)
+        data[f'rot_{angle}_y'] = (sin_angle * x) + (cos_angle * y)
 
     if geo_population:
         data['rot_45_x_city'] = (0.707 * data['lat']) + (0.707 * data['lng'])
@@ -420,7 +426,7 @@ def add_polar_coordinates(data, geo_population):
     return data
 
 
-def add_geo_pca(data, geo_population):
+def add_polar_pca(data, geo_population):
     """
     input: dataframe containing Latitude(x) and Longitude(y)
     """
@@ -447,6 +453,54 @@ def add_geo_pca(data, geo_population):
     return data
 
 
+def orientation_x(name):
+    name = str(name)
+    if 'nan' in name:
+        return 0
+    if 'Est' in name:
+        return 1
+    if 'Ouest' in name:
+        return -1
+
+
+def orientation_y(name):
+    name = str(name)
+    if 'nan' in name:
+        return 0
+    if 'Nord' in name:
+        return 1
+    if 'Sud' in name:
+        return -1
+
+
+# Write a poem :
+
+
+def caption(data, max_features=500):
+    caption_df = pd.read_csv('data/image_captions/full_df.csv')
+
+    caption_df.reset_index(drop=True, inplace=True)
+
+    caption_df.drop(columns='id_annonce', inplace=True)
+
+    caption_df['features'] = caption_df.apply(
+        lambda row: row['features'].replace("['", '').replace("']", '').
+        replace("'", ''),
+        axis=1,
+    )
+
+    vec_tdidf = TfidfVectorizer(
+        ngram_range=(1, 3),
+        analyzer='word',  # stop_words=stop_words1,
+        norm='l2',
+        tokenizer=LemmaTokenizer(),
+        max_features=max_features,
+    )
+    X_train_vect = vec_tdidf.fit_transform(caption_df['features'].values)
+    X_train_sparse = pd.DataFrame.sparse.from_spmatrix(X_train_vect)
+    X_train_sparse.columns = vec_tdidf.get_feature_names_out()
+
+
 def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     Data preprocessing pipeline
@@ -460,82 +514,99 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     else:
         Y_train_1 = Y_train_0
 
-    # #Kfol target encoding
-    if len(parameters['target_encoding']) > 0:
+    # Kfold target encoding
+    if not parameters['encoding']['target_encoding'] is None:
         X_train_enc, X_test_enc = kfold_target_encoder(
             X_train_0,
             X_test_0,
             Y_train_0,
-            parameters['target_encoding'],
+            parameters['encoding']['target_encoding'],
             'price',
             folds=10,
         )
-        X_train_0[parameters['target_encoding'][0]] = X_train_enc['_mean_enc']
-        X_test_0[parameters['target_encoding'][0]] = X_test_enc['_mean_enc']
+        X_train_0[parameters['encoding']['target_encoding']
+                  [0]] = X_train_enc['_mean_enc']
+        X_test_0[parameters['encoding']['target_encoding']
+                 [0]] = X_test_enc['_mean_enc']
 
     # Concatenating data
     data = pd.concat([X_train_0, X_test_0], axis=0).reset_index(drop=True)
 
-    # data['city']= data['city']+data['property_type']
-
     # Adding geopopulation data
-    if parameters['add_geopopulation']:
+    if parameters['geo']['add_geopopulation']:
         data = add_geopopulation(data)
 
-    if parameters['add_geopopulation_2']:
+    if parameters['geo']['add_geopopulation_2']:
         data = add_geopopulation_2(data)
 
     # Dropping columns
     data = data.drop(columns=parameters['drop_columns'])
 
     # Add distance to city center
-    if parameters['add_distance_to_city_center']:
+    if parameters['geo']['add_distance_to_city_center']:
         data = add_distance_to_center(data)
 
     # Frequency Encoding
-    if len(parameters['frequency_encoding']) > 0:
-        for i in parameters['frequency_encoding']:
+    if not parameters['encoding']['frequency_encoding'] is None:
+        for i in parameters['encoding']['frequency_encoding']:
             data[i] = data[i].apply(str)
             data = frequency_encoder(data, [i])
 
     # Label Encoding
-    if len(parameters['label_encoding']) > 0:
-        for i in parameters['label_encoding']:
+    if not parameters['encoding']['label_encoding'] is None:
+        for i in parameters['encoding']['label_encoding']:
             data[i] = data[i].apply(str)
             data = label_encoder(data, i)
 
     # Quantile Encoding
-    if len(parameters['quantile_encoding']) > 0:
-        data = quantile_encoder(data, X_train_0, Y_train_0, X_test_0,
-                                parameters['quantile_encoding'])
+    if not parameters['encoding']['quantile_encoding'] is None:
+        data = quantile_encoder(
+            data,
+            X_train_0,
+            Y_train_0,
+            X_test_0,
+            parameters['encoding']['quantile_encoding'],
+        )
 
     # Adding polar coordinates
-    if parameters['add_polar_coordinates']:
-        data = add_polar_coordinates(data, parameters['add_geopopulation'])
+    if parameters['polar']['add_polar_coordinates']:
+        data = add_polar_coordinates(data,
+                                     parameters['geo']['add_geopopulation'])
 
     # Adding polar rotation
-    if parameters['add_polar_rotation']:
-        data = add_polar_rotation(data, parameters['add_geopopulation'])
+    if not parameters['polar']['add_polar_rotation'] is None:
+        data = add_polar_rotation(
+            data,
+            parameters['polar']['add_polar_rotation'],
+            parameters['geo']['add_geopopulation'],
+        )
 
     # adding geo pca data based on lat and long
-    if parameters['add_geo_pca']:
-        data = add_geo_pca(data, parameters['add_geopopulation'])
+    if parameters['polar']['add_polar_pca']:
+        data = add_polar_pca(data, parameters['geo']['add_geopopulation'])
+
+    if parameters['polar']['add_exposition_orientation']:
+        data['orientation_x'] = data.apply(
+            lambda row: orientation_x(row['exposition']), axis=1)
+        data['orientation_y'] = data.apply(
+            lambda row: orientation_x(row['exposition']), axis=1)
 
     # Constant imputation floor
-    if parameters['constant_imputation_floor']:
+    if parameters['imputation']['constant_imputation']['constant_floor']:
         data.loc[(data['property_type'] != 'appartement')
                  & (data['property_type'] != 'chambre')
                  & data['floor'].isna(), 'floor', ] = 0
 
     # Constant imputation land size
-    if parameters['constant_land_size']:
+    if parameters['imputation']['constant_imputation']['constant_land_size']:
         data.loc[(data['property_type'] == 'chambre')
                  | (data['property_type'] == 'péniche')
                  | (data['property_type'] == 'duplex') &
                  (data['land_size'].isna()), 'land_size', ] = 0
 
     # constant imputation energy value
-    if parameters['constant_energy_performance_value']:
+    if parameters['imputation']['constant_imputation'][
+            'constant_energy_performance_value']:
         data.loc[(data['property_type'] == 'terrain')
                  | (data['property_type'] == 'péniche')
                  | (data['property_type'] == 'hôtel particulier')
@@ -543,19 +614,19 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
                  'energy_performance_value', ] = 0
 
     # constant imputation ghg value
-    if parameters['constant_ghg_value']:
+    if parameters['imputation']['constant_imputation']['constant_ghg_value']:
         data.loc[(data['property_type'] == 'terrain à bâtir')
                  | (data['property_type'] == 'péniche')
                  | (data['property_type'] == 'hôtel particulier')
                  & (data['ghg_value'].isna()), 'ghg_value', ] = 0
 
     # constant imputation bedrooms
-    if parameters['constant_imputation_bedrooms']:
+    if parameters['imputation']['constant_imputation']['constant_bedrooms']:
         data.loc[(data['property_type'] == 'chambre') &
                  (data['nb_bedrooms'].isna()), 'nb_bedrooms', ] = 0
 
     # Constant imputation exposition
-    if parameters['constant_imputation_exposition']:
+    if parameters['imputation']['constant_imputation']['constant_exposition']:
         data.loc[(data['property_type'] == 'péniche')
                  | (data['property_type'] == 'propriété')
                  | (data['property_type'] == 'parking')
@@ -566,21 +637,39 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
                  (data['exposition'].isna()), 'exposition', ] = 0
 
     # Add geodata
-    if parameters['add_geo']:
-        data = add_geo(data, parameters['geodata'])
+    if parameters['geo']['add_geo']:
+        data = add_geo(data, parameters['geo']['geodata'])
 
     # Adding images classification and quality
-    if parameters['add_classification_quality']:
+    if parameters['images']['nima']['add_classification_quality']:
         data = add_classification_quality(
-            data, parameters['images_features'],
-            parameters['classification_threshold'])
+            data,
+            parameters['images']['nima']['images_features'],
+            parameters['images']['nima']['classification_threshold'],
+        )
+
+    # Adding images extracted captions from transformer model
+    if parameters['images']['caption']['add_captions']:
+        caption_df = pd.read_csv('data/image_captions/full_df.csv')
+        caption_df.reset_index(drop=True, inplace=True)
+        caption_df.drop(columns='id_annonce', inplace=True)
+        for item in parameters['images']['caption']['has_items']:
+            caption_df[f'Has_{item}'] = caption_df.apply(
+                lambda row: int(row['features'].lower().count(item) > 0),
+                axis=1)
+        for item in parameters['images']['caption']['count_items']:
+            caption_df[f'Count_{item}'] = caption_df.apply(
+                lambda row: row['features'].lower().count(item), axis=1)
+
+        caption_df.drop(inplace=True, columns='features', axis=1)
+        data = pd.concat([data, caption_df], axis=1)
 
     # Hot encoding
-    if parameters['hot_encoding']:
+    if parameters['encoding']['hot_encoding']:
         data = pd.get_dummies(data)
 
     # Mean Imputation
-    if parameters['mean_imputation']:
+    if parameters['imputation']['mean_imputation']:
         imp_mean = SimpleImputer(missing_values=np.nan, strategy='mean')
         data_0 = data.copy()
         imp_mean.fit(data)
@@ -588,7 +677,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     # Minimum imputation
-    if parameters['mini_imputation']:
+    if parameters['imputation']['mini_imputation']:
         na_columns = [
             'size',
             'floor',
@@ -603,7 +692,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
             data[column].fillna(value=data[column].min(), inplace=True)
 
     # Iter Imputation
-    if parameters['iter_imputation']:
+    if parameters['imputation']['iter_imputation']:
         iter_mean = IterativeImputer(estimator=LGBMRegressor(), random_state=0)
         data_0 = data.copy()
         iter_mean.fit(data)
@@ -624,19 +713,19 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     rbst_scaler = RobustScaler()
     power_transformer = PowerTransformer()
 
-    if parameters['standard_scaling']:
+    if parameters['scaling']['standard_scaling']:
         data_0 = data.copy()
         scaler.fit(data)
         data = scaler.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
-    if parameters['robust_scaling']:
+    if parameters['scaling']['robust_scaling']:
         data_0 = data.copy()
         rbst_scaler.fit(data)
         data = rbst_scaler.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
-    if parameters['power_scaling']:
+    if parameters['scaling']['power_scaling']:
         data_0 = data.copy()
         power_transformer.fit(data)
         data = power_transformer.transform(data)

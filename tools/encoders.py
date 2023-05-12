@@ -18,7 +18,7 @@ def kfold_target_encoder(train, test, y_train, cols_encode, target, folds=20):
     train_new = train.copy()
     train_new = pd.concat([train_new, y_train], axis=1)
     test_new = test.copy()
-    kf = KFold(n_splits=folds, random_state=1)
+    kf = KFold(n_splits=folds)
     for col in cols_encode:
         global_mean = train_new[target].mean()
         for train_index, test_index in kf.split(train):
