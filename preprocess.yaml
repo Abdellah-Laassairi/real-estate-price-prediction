@@ -1,15 +1,15 @@
 drop_columns :
   - "energy_performance_category"
   - "ghg_category"
-  # - "property_type"
-  # - "city"
-  # - "floor"
-  # - "last_floor"
-  # - "upper_floors"
-  # - "postal_code"
+  # # - "property_type"
+  # # - "city"
+  # # - "floor"
+  # # - "last_floor"
+  # # - "upper_floors"
+  # # - "postal_code"
   # - "nb_boxes"
   # - "nb_photos"
-  # - has_air_conditioning
+  # # - has_air_conditioning
 encoding :
   frequency_encoding :
     - "city"
@@ -43,7 +43,7 @@ polar :
   add_exposition_orientation: False
 geo:
   add_geopopulation: False
-  add_geopopulation_2: False
+  add_geopopulation_2: True # good
   add_distance_to_city_center: False
   add_geo: True
   geodata :
@@ -64,6 +64,8 @@ images:
     has_items:
       - "pool"
       - "luxury"
+      # - "large house"
+      # - "pharmacy"
       # - "parking"
       # - "million"
       # - "balcony" no
@@ -76,8 +78,6 @@ images:
       - "villa"
       # - "kitchen"
       # - "dining" # don't add
-
-
 feature_transformation: False
 features_interactions: False
 scaling :
@@ -85,3 +85,5 @@ scaling :
   robust_scaling: True
   power_scaling: False
 target_transformation: True
+final_dump:
+  - 'approximate_latitude'
