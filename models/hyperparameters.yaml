@@ -2,7 +2,7 @@
 xgb_params:
   tree_method: gpu_hist
   gpu_id: 0
-  nthread: 22
+  nthread: 50
   learning_rate: 0.22502761577232197
   max_depth: 8
   objective: reg:squarederror
@@ -26,9 +26,7 @@ lgb_params:
   learning_rate: 0.1
   objective: regression
   metric: rmse
-  num_threads: 22
-  # device: gpu
-  # gpu_device_id: 0
+  num_threads: 50
   force_col_wise: true
 cat_params:
   learning_rate: 0.17447854966066342
@@ -40,4 +38,6 @@ cat_params:
   subsample: 0.9709524520446949
   use_best_model: true
   eval_metric: RMSE
+  thread_count: 50
   task_type: GPU
+  devices: '0:1:2'
