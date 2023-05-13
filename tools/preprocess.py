@@ -10,6 +10,7 @@ import yaml
 from category_encoders import SummaryEncoder
 from category_encoders import WOEEncoder
 from lightgbm import LGBMRegressor
+from rich.console import Console
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
@@ -36,6 +37,8 @@ FR_PATH = 'data/other/fr.csv'
 NV_PATH = 'data/other/Niveau_de_vie_2013_a_la_commune-Global_Map_Solution.xlsx'
 CITIES_PATH = 'data/other/city_names.json'
 
+console = Console()
+
 
 def standards(row):
     result = unidecode(row.city.lower())
@@ -56,9 +59,10 @@ NV['Nom Commune'] = NV.apply(standards2, axis=1)
 
 
 def seed_everything(seed=42):
-    """ "
+    """
     Seed everything.
     """
+    console.log('Fixing seeds ')
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -134,7 +138,7 @@ def load_data(filepath, drop_ids=True):
     Y_train_raw = pd.read_csv(filepath + 'y_train_OXxrJt1.csv')
 
     X_test_raw = pd.read_csv(filepath + 'X_test_BEhvxAN.csv')
-
+    X_train_ids = X_train_raw['id_annonce']
     # Droping ids for training
     if drop_ids:
         X_train_0 = X_train_raw.drop(columns='id_annonce')
@@ -153,10 +157,12 @@ def load_data(filepath, drop_ids=True):
     X_test_ids = X_test_raw['id_annonce']
     X_test_ids.to_pickle('data/cache/X_test_ids.pkl')
 
-    return X_train_0, Y_train_0, X_test_0, X_test_ids
+    return X_train_0, Y_train_0, X_test_0, X_test_ids, X_train_ids
 
 
 def load_hyperparameters(path='models/hyperparameters.yaml'):
+    console.log('[bold green]Loading hyperparameters...')
+
     with open(path, 'r') as f:
         data = yaml.load(f, Loader=SafeLoader)
     xgb_params = data['xgb_params']
@@ -172,6 +178,8 @@ def rev_sigmoid(x):
 
 
 def add_geo(data, places, filepath='data/'):
+    console.log('Adding geodata ')
+
     X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
     X_test_raw = pd.read_csv(filepath + 'tabular/X_test_BEhvxAN.csv')
 
@@ -234,6 +242,8 @@ def add_classification_quality(data,
                                features,
                                threshold=0.5,
                                filepath='data/'):
+
+    console.log('Adding classifcation quality using NIMA')
     X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
     X_test_raw = pd.read_csv(filepath + 'tabular/X_test_BEhvxAN.csv')
 
@@ -298,6 +308,7 @@ def add_classification_quality(data,
 
 
 def quantile_encoder(df, X_train_0, Y_train_0, X_test_0, column):
+    console.log(f'Quantile Encoding : {column}')
     city_encoder = ce.quantile_encoder.SummaryEncoder(
         quantiles=[0.25, 0.5, 0.75], m=90000.0)
 
@@ -326,20 +337,21 @@ def quantile_encoder(df, X_train_0, Y_train_0, X_test_0, column):
 
 
 def label_encoder(data, column):
+    console.log(f'Label encoding {column}')
     le = LabelEncoder()
     data[column] = le.fit_transform(data[column])
     return data
 
 
-def frequency_encoder(df, column):
-    L = 8643
-    fq = df.groupby(column).size() / L
+def frequency_encoder(df, col):
+    console.log(f'Frequency encoding {col}')
+    L = len(df[col[0]].unique())
+    fq = df.groupby(col).size() / L
     # mapping values to dataframe
-    df.loc[:, 'freq_encode'] = df[column[0]].map(fq)
+    df.loc[:, 'freq_encode'] = df[col[0]].map(fq)
 
-    df = df.drop([column[0]], axis=1)
-    df = df.rename(columns={'freq_encode': column[0]})
-
+    df = df.drop([col[0]], axis=1)
+    df = df.rename({'freq_encode': col[0]})
     return df
 
 
@@ -348,6 +360,7 @@ def add_polar_rotation(data, angles, geo_population):
     # most frequently used degrees are 30,45
     input: dataframe containing Latitude(x) and Longitude(y)
     """
+    console.log(f'Adding polar angles : {angles}')
     x = data['approximate_latitude']
     y = data['approximate_longitude']
 
@@ -369,6 +382,7 @@ def add_polar_rotation(data, angles, geo_population):
 
 
 def haversine_dist(lat1, lng1, lat2, lng2):
+
     lat1, lng1, lat2, lng2 = map(np.radians, (lat1, lng1, lat2, lng2))
     radius = 6371  # Earth's radius taken from google
     lat = lat2 - lat1
@@ -379,6 +393,7 @@ def haversine_dist(lat1, lng1, lat2, lng2):
 
 
 def add_distance_to_center(data):
+    console.log('Adding distance to city center')
     data['new_distance'] = data.apply(
         lambda row: haversine_dist(
             row['approximate_latitude'],
@@ -388,34 +403,69 @@ def add_distance_to_center(data):
         ),
         axis=1,
     )
+
+    console.log('Adding PCA to distance to city center')
+    coordinates = data[['new_distance']].values
+    imp = SimpleImputer(strategy='mean')
+    coordinates = imp.fit_transform(coordinates)
+    pca_obj = PCA().fit_transform(coordinates)
+    data['distance_pca'] = pca_obj
     return data
 
 
 def add_geopopulation_2(data):
-    data['df3_name'] = data.apply(fmatch, axis=1)
-    data['nvc'] = data.apply(nvc, axis=1)
-    data['nvd'] = data.apply(nvd, axis=1)
 
-    data.drop(columns=['df3_name'], inplace=True)
+    console.log('Adding geopopulation 2')
+
+    try:
+        geopopulation = pd.read_csv('data/geodata/geodata_2.csv')
+        data = pd.concat([data, geopopulation], axis=1)
+    except Exception as e:
+        geopopulation = pd.DataFrame({})
+
+        data['df3_name'] = data.apply(fmatch, axis=1)
+        data['nvc'] = data.apply(nvc, axis=1)
+        data['nvd'] = data.apply(nvd, axis=1)
+
+        data.drop(columns=['df3_name'], inplace=True)
+        geopopulation = data[['nvc', 'nvd']]
+        geopopulation.to_csv('data/geodata/geodata_2.csv', index=False)
+
     return data
 
 
 def add_geopopulation(data):
-    data['df2_name'] = data.apply(fmatch, axis=1)
-    data['lng'] = data.apply(lng, axis=1)
-    data['lat'] = data.apply(lat, axis=1)
 
-    data['capital'] = data.apply(capital, axis=1)
+    console.log('Adding geopopulation 1')
 
-    data['population'] = data.apply(population, axis=1)
+    try:
+        geopopulation = pd.read_csv('data/geodata/geodata_1.csv')
+        data = pd.concat([data, geopopulation], axis=1)
 
-    data['population_proper'] = data.apply(population_proper, axis=1)
+    except Exception as e:
+        geopopulation = pd.DataFrame({})
+        data['df2_name'] = data.apply(fmatch, axis=1)
+        data['lng'] = data.apply(lng, axis=1)
+        data['lat'] = data.apply(lat, axis=1)
 
-    data.drop(columns=['df3_name'], inplace=True)
+        data['capital'] = data.apply(capital, axis=1)
+
+        data['population'] = data.apply(population, axis=1)
+
+        data['population_proper'] = data.apply(population_proper, axis=1)
+        data.drop(columns=['df2_name'], inplace=True)
+
+        geopopulation = data[[
+            'lng', 'lat', 'capital', 'population', 'population_proper'
+        ]]
+
+        geopopulation.to_csv('data/geodata/geodata_1.csv', index=False)
+
     return data
 
 
 def add_polar_coordinates(data, geo_population):
+    console.log('Adding radius and angle')
     data['radius'] = np.sqrt((data['approximate_latitude']**2) +
                              (data['approximate_longitude']**2))
     data['angle'] = np.arctan2(data['approximate_longitude'],
@@ -430,6 +480,7 @@ def add_polar_pca(data, geo_population):
     """
     input: dataframe containing Latitude(x) and Longitude(y)
     """
+    console.log('Adding polar PCA')
     coordinates = data[['approximate_latitude',
                         'approximate_longitude']].values
     pca_obj = PCA().fit(coordinates)
@@ -441,15 +492,16 @@ def add_polar_pca(data, geo_population):
     data['geo_pca_x'] = pca_x
     data['geo_pca_y'] = pca_y
 
-    if geo_population:
-        print('fix nan later')
-        # coordinates = data[['lat','lng']].values
-        # pca_obj = PCA().fit(coordinates)
-        # pca_x = pca_obj.transform(data[['lat', 'lng']])[:,0]
-        # pca_y = pca_obj.transform(data[['lat', 'lng']])[:,1]
+    # if geo_population:
+    #     coordinates = data[['lat','lng']].values
+    #     imp = SimpleImputer(strategy='mean')
+    #     coordinates=imp.fit_transform(coordinates)
+    #     pca_obj = PCA().fit(coordinates)
+    #     pca_x = pca_obj.transform(coordinates)[:,0]
+    #     pca_y = pca_obj.transform(coordinates)[:,1]
 
-        # data["geo_pca_x_city"]=pca_x
-        # data["geo_pca_y_city"]=pca_y
+    #     data["geo_pca_x_city"]=pca_x
+    #     data["geo_pca_y_city"]=pca_y
     return data
 
 
@@ -507,6 +559,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     # Fixing seeds
     seed_everything()
+    console.log('[bold green]Started preprocessing')
 
     # target transformation :
     if parameters['target_transformation']:
@@ -540,7 +593,8 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
         data = add_geopopulation_2(data)
 
     # Dropping columns
-    data = data.drop(columns=parameters['drop_columns'])
+    if not parameters['drop_columns'] is None:
+        data = data.drop(columns=parameters['drop_columns'])
 
     # Add distance to city center
     if parameters['geo']['add_distance_to_city_center']:
@@ -650,6 +704,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Adding images extracted captions from transformer model
     if parameters['images']['caption']['add_captions']:
+        console.log('Adding extracted captions from images')
         caption_df = pd.read_csv('data/image_captions/full_df.csv')
         caption_df.reset_index(drop=True, inplace=True)
         caption_df.drop(columns='id_annonce', inplace=True)
@@ -661,11 +716,12 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
             caption_df[f'Count_{item}'] = caption_df.apply(
                 lambda row: row['features'].lower().count(item), axis=1)
 
-        caption_df.drop(inplace=True, columns='features', axis=1)
+        caption_df.drop(inplace=True, columns=['features'], axis=1)
         data = pd.concat([data, caption_df], axis=1)
 
     # Hot encoding
     if parameters['encoding']['hot_encoding']:
+        console.log('Hot Encoding')
         data = pd.get_dummies(data)
 
     # Mean Imputation
@@ -701,6 +757,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Feautures interractions
     if parameters['features_interactions']:
+        console.log('Adding polynomial features')
         data_0 = data.copy()
         poly = PolynomialFeatures(2)
         data = poly.fit_transform(data)
@@ -714,25 +771,37 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     power_transformer = PowerTransformer()
 
     if parameters['scaling']['standard_scaling']:
+        console.log('Appling standard scaling')
         data_0 = data.copy()
         scaler.fit(data)
         data = scaler.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     if parameters['scaling']['robust_scaling']:
+        console.log('Appling robust scaling')
         data_0 = data.copy()
         rbst_scaler.fit(data)
         data = rbst_scaler.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     if parameters['scaling']['power_scaling']:
+        console.log('Appling power scaling')
         data_0 = data.copy()
         power_transformer.fit(data)
         data = power_transformer.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
+    if 'id_annonce' in data.columns:
+        data.drop(inplace=True, columns='id_annonce')
+
+    if not parameters['final_dump'] is None:
+        console.log(f"Dumping {parameters['final_dump']}")
+        data.drop(inplace=True, columns=parameters['final_dump'])
+
     # Splitting the data back
     X_train_1 = data.loc[:X_train_0.index.max(), :]
     X_test_1 = data.loc[X_train_0.index.max() + 1:, :]
+
+    console.log('[bold green]Finished preprocessing ')
 
     return X_train_1, Y_train_1, X_test_1
