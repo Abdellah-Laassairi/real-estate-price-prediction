@@ -24,4 +24,5 @@ BorutaShap
 FuzzyWuzzy
 openpyxl
 clearml
+python-Levenshtein
 pre-commit
