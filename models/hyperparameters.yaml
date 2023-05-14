@@ -14,7 +14,6 @@ xgb_params:
   reg_lambda:  0.266730965261371
   reg_alpha: 0.9482428389899951
   max_bin: 439
-#  'min_child_weight': 3,
 lgb_params:
   boosting_type: gbdt
   lambda_l1: 3.035082410337794e-05
