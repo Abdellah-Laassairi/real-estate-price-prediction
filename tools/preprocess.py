@@ -177,7 +177,7 @@ def rev_sigmoid(x):
     return 2 / (1 + np.exp(0.9 * x / 1000))
 
 
-def add_geo(data, places, filepath='data/'):
+def add_geo(data, places=[], filepath='data/'):
     console.log('Adding geodata ')
 
     X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
@@ -239,7 +239,7 @@ def add_geo(data, places, filepath='data/'):
 
 
 def add_classification_quality(data,
-                               features,
+                               features_to_keep,
                                threshold=0.5,
                                filepath='data/'):
 
@@ -286,15 +286,17 @@ def add_classification_quality(data,
 
     # ordering indexes of X_train
     X_train_images.set_index('id_annonce', inplace=True)
-    if len(features) > 0:
-        X_train_images = X_train_images[features]
+    if features_to_keep is not None:
+        if len(features_to_keep) > 0:
+            X_train_images = X_train_images[features_to_keep]
 
     X_train_images = X_train_images.reindex(index=X_train_raw['id_annonce'])
 
     # Ordering indexes of X_test
     X_test_images.set_index('id_annonce', inplace=True)
-    if len(features) > 0:
-        X_test_images = X_test_images[features]
+    if features_to_keep is not None:
+        if len(features_to_keep) > 0:
+            X_test_images = X_test_images[features_to_keep]
 
     X_test_images = X_test_images.reindex(index=X_test_raw['id_annonce'])
 
@@ -440,8 +442,8 @@ def add_geopopulation(data):
 
     try:
         geopopulation = pd.read_csv('data/geodata/geodata_1.csv')
+        # geopopulation.drop(inplace=True,columns='capital',axis=1 )
         data = pd.concat([data, geopopulation], axis=1)
-
     except Exception as e:
         geopopulation = pd.DataFrame({})
         data['df2_name'] = data.apply(fmatch, axis=1)
@@ -455,9 +457,7 @@ def add_geopopulation(data):
         data['population_proper'] = data.apply(population_proper, axis=1)
         data.drop(columns=['df2_name'], inplace=True)
 
-        geopopulation = data[[
-            'lng', 'lat', 'capital', 'population', 'population_proper'
-        ]]
+        geopopulation = data[['lng', 'lat', 'population', 'population_proper']]
 
         geopopulation.to_csv('data/geodata/geodata_1.csv', index=False)
 
@@ -692,7 +692,10 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Add geodata
     if parameters['geo']['add_geo']:
-        data = add_geo(data, parameters['geo']['geodata'])
+        if parameters['geo']['geodata_list'] is None:
+            data = add_geo(data)
+        else:
+            data = add_geo(data, parameters['geo']['geodata_list'])
 
     # Adding images classification and quality
     if parameters['images']['nima']['add_classification_quality']:
