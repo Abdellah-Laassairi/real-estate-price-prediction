@@ -40,6 +40,3 @@ def concatenate_images(path_image):
             x_offset = 0
             y_offset += max_height
     return concatenated_image
-
-
-# save the concatenated image
