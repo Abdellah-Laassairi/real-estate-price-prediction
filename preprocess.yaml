@@ -1,15 +1,6 @@
 drop_columns :
   - "energy_performance_category"
   - "ghg_category"
-  # # - "property_type"
-  # # - "city"
-  # # - "floor"
-  # # - "last_floor"
-  # # - "upper_floors"
-  # # - "postal_code"
-  # - "nb_boxes"
-  # - "nb_photos"
-  # # - has_air_conditioning
 encoding :
   frequency_encoding :
     - "city"
@@ -46,10 +37,9 @@ geo:
   add_geopopulation_2: True # good
   add_distance_to_city_center: False
   add_geo: True
-  geodata :
+  geodata_list : #null
     - index
     - "num_train_station"
-    - "num_night_club"
     - "num_gas_station"
     - "user_ratings_total"
 images:
