@@ -6,6 +6,7 @@ from transformers import AutoModelForSequenceClassification
 from transformers import AutoTokenizer
 from transformers import DataCollatorWithPadding
 from transformers import Trainer
+from transformers import TrainingArguments
 
 BASE_MODEL = 'bert-base-cased'
 LEARNING_RATE = 1e-1
@@ -40,8 +41,6 @@ def compute_metrics_for_regression(eval_pred):
 
     return {'mse': mse, 'mae': mae, 'r2': r2, 'accuracy': accuracy}
 
-
-from transformers import TrainingArguments, Trainer
 
 training_args = TrainingArguments(
     output_dir='../models/camembert-fine-tuned-regression-2',
@@ -87,6 +86,9 @@ if __name__ == '__main__':
         ds[split].reset_index(inplace=True, drop=True)
 
     class RegressionTrainer(Trainer):
+        """
+        Hana ajoutito
+        """
         def compute_loss(self, model, inputs, return_outputs=False):
             labels = inputs.pop('labels')
             outputs = model(**inputs)
@@ -103,3 +105,8 @@ if __name__ == '__main__':
     )
 
     trainer.train()
+    # ! This part is dangerous keep attention
+    # TODO : clean the code and safi
+    #* This highlit
+    # normal comment
+    # linters
