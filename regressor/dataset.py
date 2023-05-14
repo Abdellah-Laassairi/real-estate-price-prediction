@@ -1,5 +1,4 @@
 import glob
-import math
 import os
 from pathlib import Path
 from typing import Union
@@ -22,15 +21,13 @@ from torchvision import transforms
 DATA_TRANSFORMS = {
     'train':
     transforms.Compose([
-        #transforms.Pad(padding, fill=0, padding_mode='constant'),
-        # transforms.Resize((342, 460)),  # 224   342 460
-        # transforms.RandomHorizontalFlip(),
+        transforms.Resize((342, 460)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     'val':
     transforms.Compose([
-        # transforms.Resize((600, 800)),
+        transforms.Resize((342, 460)),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
