@@ -70,13 +70,15 @@ if __name__ == '__main__':
 
     y_train_raw = pd.read_csv('../data/tabular/y_train_OXxrJt1.csv')
     x_test_raw = pd.read_csv('../data/tabular/X_test_BEhvxAN.csv')
-    sub = len(x_test_raw) // 3
-    subsets = [x_test_raw[:sub], x_test_raw[sub:2 * sub], x_test_raw[2 * sub:]]
+
+    n_workers = 3
+    device = 'cuda'
+
+    n = len(x_test_raw) // n_workers
+    subsets = [x_test_raw[:n], x_test_raw[n:2 * n], x_test_raw[2 * n:]]
 
     for i, sub in enumerate(subsets):
         print(f'Task {i} : {len(sub)}')
-    device = 'cuda'
-    n_workers = 3
 
     with progress.Progress(
             '[progress.description]{task.description}',
