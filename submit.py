@@ -1,5 +1,3 @@
-import random
-import string
 import time
 
 import catboost as cat
@@ -203,20 +201,10 @@ def train_cat(X_train, y_train, X_test):
     return final_predictions, predictions, R2, mae, mse, rmse
 
 
-letters = string.digits
-buzzwords = ['khrba', 'dar', 'hmza', 'mdrasa', 'ard']
-morewords = ['kbira', 'sghira', 'zwina', 'khayba', 'jdida', '9dima']
-task_name = f'{random.choice(letters)}-{random.choice(buzzwords)}-{random.choice(morewords)}'
-
 if __name__ == '__main__':
     with open('preprocess.yaml', 'r') as f:
         preprocessing_parameters = yaml.load(f, Loader=SafeLoader)
     console = Console()
-    # Creating task & connecting preprocessing parameters
-    console.log(f'[bold green]Creating Task {task_name}')
-    task = Task.create(project_name='real-estate', task_name=task_name)
-    clearml_logger = task.get_logger()
-    task.connect(preprocessing_parameters, 'preprocessing_parameters')
 
     X_train_0, Y_train_0, X_test_0, X_test_ids, X_train_ids = load_data(
         'data/tabular/', False)
@@ -227,36 +215,20 @@ if __name__ == '__main__':
 
     N_FOLD = 50  # 10 for tests
     EARLY_STOP = 250
-    # XGB_ITERATIONS = 100
-    # LGB_ITERATIONS = 250
-    # CAT_ITERATIONS = 300
     XGB_ITERATIONS = 1000
     LGB_ITERATIONS = 2000
     CAT_ITERATIONS = 3000
-    task.connect(xgb_params, name='xgb_params')
-    task.connect(lgb_params, name='lgb_params')
-    task.connect(cat_params, name='cat_params')
-    clearml_logger.report_single_value('XGB_ITERATIONS', XGB_ITERATIONS)
-    clearml_logger.report_single_value('LGB_ITERATIONS', LGB_ITERATIONS)
-    clearml_logger.report_single_value('CAT_ITERATIONS', CAT_ITERATIONS)
 
     console.log('Launched XGB Training : ')
     xgb_preds, xgb_train_preds, r2_xgb, mae_xgb, mse_xgb, rmse_xgb = train_xgb(
         X_train_1, Y_train_1, X_test_1)
-    clearml_logger.report_single_value('r2_xgb', r2_xgb)
-    clearml_logger.report_single_value('mae_xgb', mae_xgb)
-    clearml_logger.report_single_value('mse_xgb', mse_xgb)
-    clearml_logger.report_single_value('rmse_xgb', rmse_xgb)
+
     # R2 = 0.8123 --- MAE=0.2419 ---MSE=0.1228 --- RMSE =0.3504 | CV =50 | 1000 iters
+    # R2 = 0.8251 --- MAE=0.2342 ---MSE=0.1144 --- RMSE =0.3382 | CV =50 | 1000 iters (current hyperparameters)
 
     console.log('Launched LGB Training')
     lgb_preds, lgb_train_preds, r2_lgb, mae_lgb, mse_lgb, rmse_lgb = train_lgb(
         X_train_1, Y_train_1, X_test_1)
-    clearml_logger.report_single_value('r2_lgb', r2_lgb)
-    clearml_logger.report_single_value('mae_lgb', mae_lgb)
-    clearml_logger.report_single_value('mse_lgb', mse_lgb)
-    clearml_logger.report_single_value('rmse_lgb', rmse_lgb)
-
     # R2 = 0.8216 --- MAE=0.2328 ---MSE=0.1167 --- RMSE =0.3416 CV10
     # R2 = 0.8252 --- MAE=0.2310 ---MSE=0.1144 --- RMSE =0.3382 CV25
     # R2 = 0.8272 --- MAE=0.2274 ---MSE=0.1130 --- RMSE =0.3362 | CV =50 | 2000 iters
@@ -264,10 +236,6 @@ if __name__ == '__main__':
     console.log('Launched cat training')
     cat_preds, cat_train_preds, r2_cat, mae_cat, mse_cat, rmse_cat = train_cat(
         X_train_1, Y_train_1, X_test_1)
-    clearml_logger.report_single_value('r2_cat', r2_cat)
-    clearml_logger.report_single_value('mae_cat', mae_cat)
-    clearml_logger.report_single_value('mse_cat', mse_cat)
-    clearml_logger.report_single_value('rmse_cat', rmse_cat)
 
     # R2 = 0.8188 --- MAE=0.2386 ---MSE=0.1185 --- RMSE =0.3443 CV 10
     # R2 = 0.8252 --- MAE=0.2340 ---MSE=0.1143 --- RMSE =0.3381 | CV =50 | iters 3000
@@ -284,7 +252,7 @@ if __name__ == '__main__':
     final_submission = pd.concat([X_test_ids, final_predictions], axis=1)
     final_submission['id_annonce'] = final_submission['id_annonce'].astype(
         np.int32)
-    final_submission.to_csv('data/final_submission_168.csv',
+    final_submission.to_csv('data/final_submission_169.csv',
                             index=False,
                             header=True)
     console.log('Finished submitting')
