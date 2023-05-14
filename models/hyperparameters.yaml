@@ -3,16 +3,18 @@ xgb_params:
   tree_method: gpu_hist
   gpu_id: 0
   nthread: 50
-  learning_rate: 0.22502761577232197
-  max_depth: 8
+  learning_rate: 0.13587781523288686
+  max_depth: 11
   objective: reg:squarederror
-  min_child_weight: 2.8420515790248526
+  min_child_weight: 3
   subsample: 0.975
   colsample_bytree: 0.75
   colsample_bylevel: 0.925
-  gamma: 0.001531824642793309
-  reg_lambda: 0.010527402680638263
-  reg_alpha: 1.2647545029756599e-08
+  gamma: 0.01855340950705289
+  reg_lambda:  0.266730965261371
+  reg_alpha: 0.9482428389899951
+  max_bin: 439
+#  'min_child_weight': 3,
 lgb_params:
   boosting_type: gbdt
   lambda_l1: 3.035082410337794e-05
