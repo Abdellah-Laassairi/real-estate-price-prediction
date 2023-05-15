@@ -45,7 +45,7 @@ def train_xgb(X_train, y_train, X_test):
     i = 1
 
     with progress_bar as progress:
-        task1 = progress.add_task('[red]Training XGB', total=10)
+        task1 = progress.add_task('[red]Training XGB', total=nfold)
         while not progress.finished:
 
             for train_index, valid_index in skf.split(X_train, y_train.values):
@@ -106,7 +106,7 @@ def train_lgb(X_train, y_train, X_test):
 
     i = 1
     with progress_bar as progress:
-        task1 = progress.add_task('[red]Training LGB', total=10)
+        task1 = progress.add_task('[red]Training LGB', total=nfold)
         while not progress.finished:
             for train_index, valid_index in skf.split(X_train, y_train.values):
                 d_train = lgb.Dataset(
@@ -162,7 +162,7 @@ def train_cat(X_train, y_train, X_test):
 
     i = 1
     with progress_bar as progress:
-        task1 = progress.add_task('[red]Training CAT', total=10)
+        task1 = progress.add_task('[red]Training CAT', total=nfold)
         while not progress.finished:
             for train_index, valid_index in skf.split(X_train, y_train.values):
                 # print("\nFold {}".format(i))
