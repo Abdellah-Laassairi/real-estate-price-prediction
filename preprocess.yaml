@@ -54,19 +54,23 @@ images:
     has_items:
       - "pool"
       - "luxury"
-      # - "large house"
-      # - "pharmacy"
-      # - "parking"
-      # - "million"
+      # - "property image" # no
+      # - "jacuzzi" # no
+      # - "pharmacy" no
+      # - "parking" no
+      # - "million" no
       # - "balcony" no
       # - "garden" not this
       # - "ocean" # don't add
     count_items:
-      - "bathroom"
+      # - "bathroom" don't add
       - "bedroom"
       - "living"
       - "villa"
-      # - "kitchen"
+      # - "sea"
+      # - "large house" # don't add
+      # - "balcony" # don't add
+      # - "kitchen" don't add
       # - "dining" # don't add
 feature_transformation: False
 features_interactions: False
