@@ -1,6 +1,6 @@
 ## Real estate price prediction — ILB Challenge (2022)
 
-This repository contains Abdellah's personal submission for the Institut Louis Bachelier (ILB) Challenge Data 2022 on real-estate price prediction. It combines strong tabular modeling, image-derived signals, and careful feature engineering to predict listing prices from both metadata and 1–6 property photos.
+This repository contains my personal submission for the Institut Louis Bachelier (ILB) Challenge Data 2022 on real-estate price prediction. It combines strong tabular modeling, image-derived signals, and careful feature engineering to predict listing prices from both metadata and 1–6 property photos, [Challenge URL.](https://challengedata.ens.fr/participants/challenges/68/)
 
 ### Highlights
 - **Ensemble of gradient-boosting models** (XGBoost, LightGBM, CatBoost) on engineered tabular features
