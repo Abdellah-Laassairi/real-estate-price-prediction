@@ -1,0 +1,24 @@
+site_name: Real Estate Price Prediction
+site_description: ILB Challenge solution and experiments by Abdellah
+site_dir: site
+docs_dir: docs
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - Pipeline: pipeline.md
+  - Experiments: experiments.md
+  - Development: development.md
+
+theme:
+  name: mkdocs
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+
