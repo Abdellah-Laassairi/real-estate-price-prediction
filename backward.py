@@ -8,7 +8,7 @@ import yaml
 from catboost import CatBoostRegressor
 from clearml import Task
 from lightgbm import LGBMRegressor
-from rich.console import Console
+from loguru import logger as log
 from rich.progress import *
 from sklearn.ensemble import *
 from sklearn.metrics import mean_absolute_error
@@ -82,7 +82,7 @@ def train_xgb(X_train, y_train, X_test):
     mae = mean_absolute_error(y_train.values, oof)
     mse = mean_squared_error(y_train.values, oof)
     rmse = np.sqrt(mse)
-    console.log(
+    log.info(
         f'R2 = {R2:<0.4f} --- MAE={mae:<0.4f} ---MSE={mse:<0.4f} --- RMSE ={rmse:<0.4f} | CV ={N_FOLD}'
     )
     return final_predictions, predictions, R2, mae, mse, rmse
@@ -96,9 +96,8 @@ task_name = f'{random.choice(letters)}-{random.choice(buzzwords)}-{random.choice
 if __name__ == '__main__':
     with open('preprocess.yaml', 'r') as f:
         preprocessing_parameters = yaml.load(f, Loader=SafeLoader)
-    console = Console()
     # Creating task & connecting preprocessing parameters
-    console.log(f'[bold green]Creating Task {task_name}')
+    log.info(f'Creating task {task_name}')
     task = Task.create(project_name='real-estate-xgb', task_name=task_name)
     clearml_logger = task.get_logger()
     task.connect(preprocessing_parameters, 'preprocessing_parameters')
@@ -113,12 +112,12 @@ if __name__ == '__main__':
     xgb_params, lgb_params, cat_params = load_hyperparameters()
     X_train_1, Y_train_1, X_test_1 = preprocess(X_train_0, Y_train_0, X_test_0,
                                                 preprocessing_parameters)
-    console.log('Launched XGB Training : ')
+    log.info('Launched XGB training')
     predictors = X_train_1.columns
     xgb_preds, xgb_train_preds, r2_xgb, mae_xgb, mse_xgb, rmse_xgb = train_xgb(
         X_train_1, Y_train_1, X_test_1)
     baseline_mae = mae_xgb
-    console.log(f'columns {X_train_1.columns}')
+    log.info(f'Columns: {list(X_train_1.columns)}')
     # i=0
     # # Current best for 100 iters and 10cv :
     # # R2 = 0.8062 --- MAE=0.2523 ---MSE=0.1268

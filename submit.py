@@ -6,7 +6,7 @@ import yaml
 from catboost import CatBoostRegressor
 from clearml import Task
 from lightgbm import LGBMRegressor
-from rich.console import Console
+from loguru import logger as log
 from rich.progress import *
 from sklearn.ensemble import *
 from sklearn.metrics import mean_absolute_error
@@ -204,8 +204,6 @@ def train_cat(X_train, y_train, X_test):
 if __name__ == '__main__':
     with open('preprocess.yaml', 'r') as f:
         preprocessing_parameters = yaml.load(f, Loader=SafeLoader)
-    console = Console()
-
     X_train_0, Y_train_0, X_test_0, X_test_ids, X_train_ids = load_data(
         'data/tabular/', False)
 
@@ -219,28 +217,28 @@ if __name__ == '__main__':
     LGB_ITERATIONS = 2000
     CAT_ITERATIONS = 3000
 
-    console.log('Launched XGB Training : ')
+    log.info('Launched XGB training')
     xgb_preds, xgb_train_preds, r2_xgb, mae_xgb, mse_xgb, rmse_xgb = train_xgb(
         X_train_1, Y_train_1, X_test_1)
 
     # R2 = 0.8123 --- MAE=0.2419 ---MSE=0.1228 --- RMSE =0.3504 | CV =50 | 1000 iters
     # R2 = 0.8251 --- MAE=0.2342 ---MSE=0.1144 --- RMSE =0.3382 | CV =50 | 1000 iters (current hyperparameters)
 
-    console.log('Launched LGB Training')
+    log.info('Launched LGB training')
     lgb_preds, lgb_train_preds, r2_lgb, mae_lgb, mse_lgb, rmse_lgb = train_lgb(
         X_train_1, Y_train_1, X_test_1)
     # R2 = 0.8216 --- MAE=0.2328 ---MSE=0.1167 --- RMSE =0.3416 CV10
     # R2 = 0.8252 --- MAE=0.2310 ---MSE=0.1144 --- RMSE =0.3382 CV25
     # R2 = 0.8272 --- MAE=0.2274 ---MSE=0.1130 --- RMSE =0.3362 | CV =50 | 2000 iters
 
-    console.log('Launched cat training')
+    log.info('Launched CatBoost training')
     cat_preds, cat_train_preds, r2_cat, mae_cat, mse_cat, rmse_cat = train_cat(
         X_train_1, Y_train_1, X_test_1)
 
     # R2 = 0.8188 --- MAE=0.2386 ---MSE=0.1185 --- RMSE =0.3443 CV 10
     # R2 = 0.8252 --- MAE=0.2340 ---MSE=0.1143 --- RMSE =0.3381 | CV =50 | iters 3000
 
-    console.log('Submitting...')
+    log.info('Submitting...')
     weights = [5 / 20, 9 / 20, 6 / 20]
 
     final_predictions_sum = (weights[0] * np.exp(xgb_preds) +
@@ -255,7 +253,7 @@ if __name__ == '__main__':
     final_submission.to_csv('data/final_submission_169.csv',
                             index=False,
                             header=True)
-    console.log('Finished submitting')
+    log.info('Finished submitting')
 
     train_sum = (weights[0] * np.exp(xgb_train_preds) +
                  weights[1] * np.exp(lgb_train_preds) +
@@ -269,4 +267,4 @@ if __name__ == '__main__':
     train_submission.to_csv('data/train_submission.csv',
                             index=False,
                             header=True)
-    console.log('Finished submitting for training data')
+    log.info('Finished submitting for training data')

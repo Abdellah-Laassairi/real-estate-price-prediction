@@ -6,6 +6,7 @@ from sklearn.metrics import roc_auc_score
 from torchmetrics import Accuracy
 from torchmetrics import R2Score
 from torchmetrics.classification import MulticlassAccuracy
+from loguru import logger as log
 
 logger = TensorBoardLogger('tb_logs', name='my_model')
 
@@ -44,6 +45,8 @@ class RealModel(pl.LightningModule):
         self.acc = R2Score(num_outputs=self.batch_size,
                            multioutput='raw_values')
         self.dropout = torch.nn.Dropout(0.4)
+        log.info('Initialized RealModel arch={} num_target_classes={} batch_size={} max_epochs={}',
+                 arch, self.num_target_classes, self.batch_size, self.max_epochs)
 
     def forward(self, x):
         x1 = self.net(x)

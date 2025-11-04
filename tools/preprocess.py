@@ -10,7 +10,6 @@ import yaml
 from category_encoders import SummaryEncoder
 from category_encoders import WOEEncoder
 from lightgbm import LGBMRegressor
-from rich.console import Console
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.experimental import enable_iterative_imputer
@@ -37,7 +36,7 @@ FR_PATH = 'data/other/fr.csv'
 NV_PATH = 'data/other/Niveau_de_vie_2013_a_la_commune-Global_Map_Solution.xlsx'
 CITIES_PATH = 'data/other/city_names.json'
 
-console = Console()
+from loguru import logger as log
 
 
 def standards(row):
@@ -62,7 +61,7 @@ def seed_everything(seed=42):
     """
     Seed everything.
     """
-    console.log('Fixing seeds ')
+    log.info('Fixing seeds')
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -161,7 +160,7 @@ def load_data(filepath, drop_ids=True):
 
 
 def load_hyperparameters(path='models/hyperparameters.yaml'):
-    console.log('[bold green]Loading hyperparameters...')
+    log.info('Loading hyperparameters...')
 
     with open(path, 'r') as f:
         data = yaml.load(f, Loader=SafeLoader)
@@ -178,7 +177,7 @@ def rev_sigmoid(x):
 
 
 def add_geo(data, places=[], filepath='data/'):
-    console.log('Adding geodata ')
+    log.info('Adding geodata')
 
     X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
     X_test_raw = pd.read_csv(filepath + 'tabular/X_test_BEhvxAN.csv')
@@ -243,7 +242,7 @@ def add_classification_quality(data,
                                threshold=0.5,
                                filepath='data/'):
 
-    console.log('Adding classifcation quality using NIMA')
+    log.info('Adding classification quality using NIMA')
     X_train_raw = pd.read_csv(filepath + 'tabular/X_train_J01Z4CN.csv')
     X_test_raw = pd.read_csv(filepath + 'tabular/X_test_BEhvxAN.csv')
 
@@ -310,7 +309,7 @@ def add_classification_quality(data,
 
 
 def quantile_encoder(df, X_train_0, Y_train_0, X_test_0, column):
-    console.log(f'Quantile Encoding : {column}')
+    log.info(f'Quantile encoding: {column}')
     city_encoder = ce.quantile_encoder.SummaryEncoder(
         quantiles=[0.25, 0.5, 0.75], m=90000.0)
 
@@ -339,14 +338,14 @@ def quantile_encoder(df, X_train_0, Y_train_0, X_test_0, column):
 
 
 def label_encoder(data, column):
-    console.log(f'Label encoding {column}')
+    log.info(f'Label encoding {column}')
     le = LabelEncoder()
     data[column] = le.fit_transform(data[column])
     return data
 
 
 def frequency_encoder(df, col):
-    console.log(f'Frequency encoding {col}')
+    log.info(f'Frequency encoding {col}')
     L = len(df[col[0]].unique())
     fq = df.groupby(col).size() / L
     # mapping values to dataframe
@@ -362,7 +361,7 @@ def add_polar_rotation(data, angles, geo_population):
     # most frequently used degrees are 30,45
     input: dataframe containing Latitude(x) and Longitude(y)
     """
-    console.log(f'Adding polar angles : {angles}')
+    log.info(f'Adding polar angles: {angles}')
     x = data['approximate_latitude']
     y = data['approximate_longitude']
 
@@ -395,7 +394,7 @@ def haversine_dist(lat1, lng1, lat2, lng2):
 
 
 def add_distance_to_center(data):
-    console.log('Adding distance to city center')
+    log.info('Adding distance to city center')
     data['new_distance'] = data.apply(
         lambda row: haversine_dist(
             row['approximate_latitude'],
@@ -406,7 +405,7 @@ def add_distance_to_center(data):
         axis=1,
     )
 
-    console.log('Adding PCA to distance to city center')
+    log.info('Adding PCA to distance to city center')
     coordinates = data[['new_distance']].values
     imp = SimpleImputer(strategy='mean')
     coordinates = imp.fit_transform(coordinates)
@@ -417,7 +416,7 @@ def add_distance_to_center(data):
 
 def add_geopopulation_2(data):
 
-    console.log('Adding geopopulation 2')
+    log.info('Adding geopopulation 2')
 
     try:
         geopopulation = pd.read_csv('data/geodata/geodata_2.csv')
@@ -438,7 +437,7 @@ def add_geopopulation_2(data):
 
 def add_geopopulation(data):
 
-    console.log('Adding geopopulation 1')
+    log.info('Adding geopopulation 1')
 
     try:
         geopopulation = pd.read_csv('data/geodata/geodata_1.csv')
@@ -465,7 +464,7 @@ def add_geopopulation(data):
 
 
 def add_polar_coordinates(data, geo_population):
-    console.log('Adding radius and angle')
+    log.info('Adding radius and angle')
     data['radius'] = np.sqrt((data['approximate_latitude']**2) +
                              (data['approximate_longitude']**2))
     data['angle'] = np.arctan2(data['approximate_longitude'],
@@ -480,7 +479,7 @@ def add_polar_pca(data, geo_population):
     """
     input: dataframe containing Latitude(x) and Longitude(y)
     """
-    console.log('Adding polar PCA')
+    log.info('Adding polar PCA')
     coordinates = data[['approximate_latitude',
                         'approximate_longitude']].values
     pca_obj = PCA().fit(coordinates)
@@ -559,7 +558,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     """
     # Fixing seeds
     seed_everything()
-    console.log('[bold green]Started preprocessing')
+    log.info('Started preprocessing')
 
     # target transformation :
     if parameters['target_transformation']:
@@ -707,7 +706,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Adding images extracted captions from transformer model
     if parameters['images']['caption']['add_captions']:
-        console.log('Adding extracted captions from images')
+        log.info('Adding extracted captions from images')
         caption_df = pd.read_csv('data/image_captions/full_df.csv')
         caption_df.reset_index(drop=True, inplace=True)
         caption_df.drop(columns='id_annonce', inplace=True)
@@ -724,7 +723,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Hot encoding
     if parameters['encoding']['hot_encoding']:
-        console.log('Hot Encoding')
+        log.info('Hot encoding')
         data = pd.get_dummies(data)
 
     # Mean Imputation
@@ -760,7 +759,7 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
 
     # Feautures interractions
     if parameters['features_interactions']:
-        console.log('Adding polynomial features')
+        log.info('Adding polynomial features')
         data_0 = data.copy()
         poly = PolynomialFeatures(2)
         data = poly.fit_transform(data)
@@ -774,21 +773,21 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
     power_transformer = PowerTransformer()
 
     if parameters['scaling']['standard_scaling']:
-        console.log('Appling standard scaling')
+        log.info('Applying standard scaling')
         data_0 = data.copy()
         scaler.fit(data)
         data = scaler.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     if parameters['scaling']['robust_scaling']:
-        console.log('Appling robust scaling')
+        log.info('Applying robust scaling')
         data_0 = data.copy()
         rbst_scaler.fit(data)
         data = rbst_scaler.transform(data)
         data = pd.DataFrame(data, index=data_0.index, columns=data_0.columns)
 
     if parameters['scaling']['power_scaling']:
-        console.log('Appling power scaling')
+        log.info('Applying power scaling')
         data_0 = data.copy()
         power_transformer.fit(data)
         data = power_transformer.transform(data)
@@ -798,13 +797,13 @@ def preprocess(X_train_0, Y_train_0, X_test_0, parameters):
         data.drop(inplace=True, columns='id_annonce')
 
     if not parameters['final_dump'] is None:
-        console.log(f"Dumping {parameters['final_dump']}")
+        log.info(f"Dropping final columns: {parameters['final_dump']}")
         data.drop(inplace=True, columns=parameters['final_dump'])
 
     # Splitting the data back
     X_train_1 = data.loc[:X_train_0.index.max(), :]
     X_test_1 = data.loc[X_train_0.index.max() + 1:, :]
 
-    console.log('[bold green]Finished preprocessing ')
+    log.info('Finished preprocessing')
 
     return X_train_1, Y_train_1, X_test_1

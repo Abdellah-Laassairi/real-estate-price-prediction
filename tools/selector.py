@@ -16,6 +16,7 @@ import gc
 
 # utilities
 from itertools import chain
+from loguru import logger as log
 
 class FeatureSelector():
     """
@@ -87,7 +88,7 @@ class FeatureSelector():
         self.labels = labels
 
         if labels is None:
-            print('No labels provided. Feature importance based methods are not available.')
+            log.info('No labels provided. Feature importance based methods are not available.')
         
         self.base_features = list(data.columns)
         self.one_hot_features = None
@@ -131,7 +132,7 @@ class FeatureSelector():
         self.record_missing = record_missing
         self.ops['missing'] = to_drop
         
-        print('%d features with greater than %0.2f missing values.\n' % (len(self.ops['missing']), self.missing_threshold))
+        log.info('%d features with greater than %0.2f missing values.', len(self.ops['missing']), self.missing_threshold)
         
     def identify_single_unique(self):
         """Finds features with only a single unique value. NaNs do not count as a unique value. """
@@ -150,7 +151,7 @@ class FeatureSelector():
         self.record_single_unique = record_single_unique
         self.ops['single_unique'] = to_drop
         
-        print('%d features with a single unique value.\n' % len(self.ops['single_unique']))
+        log.info('%d features with a single unique value.', len(self.ops['single_unique']))
     
     def identify_collinear(self, correlation_threshold, one_hot=False):
         """
@@ -218,7 +219,7 @@ class FeatureSelector():
         self.record_collinear = record_collinear
         self.ops['collinear'] = to_drop
         
-        print('%d features with a correlation magnitude greater than %0.2f.\n' % (len(self.ops['collinear']), self.correlation_threshold))
+        log.info('%d features with a correlation magnitude greater than %0.2f.', len(self.ops['collinear']), self.correlation_threshold)
 
     def identify_zero_importance(self, task, eval_metric=None, 
                                  n_iterations=10, early_stopping = True):
@@ -275,7 +276,7 @@ class FeatureSelector():
         # Empty array for feature importances
         feature_importance_values = np.zeros(len(feature_names))
         
-        print('Training Gradient Boosting Model\n')
+        log.info('Training Gradient Boosting Model')
         
         # Iterate through each fold
         for _ in range(n_iterations):
@@ -328,7 +329,7 @@ class FeatureSelector():
         self.record_zero_importance = record_zero_importance
         self.ops['zero_importance'] = to_drop
         
-        print('\n%d features with zero importance after one-hot encoding.\n' % len(self.ops['zero_importance']))
+        log.info('%d features with zero importance after one-hot encoding.', len(self.ops['zero_importance']))
     
     def identify_low_importance(self, cumulative_importance):
         """
@@ -360,10 +361,10 @@ class FeatureSelector():
         self.record_low_importance = record_low_importance
         self.ops['low_importance'] = to_drop
     
-        print('%d features required for cumulative importance of %0.2f after one hot encoding.' % (len(self.feature_importances) -
-                                                                            len(self.record_low_importance), self.cumulative_importance))
-        print('%d features do not contribute to cumulative importance of %0.2f.\n' % (len(self.ops['low_importance']),
-                                                                                               self.cumulative_importance))
+        log.info('%d features required for cumulative importance of %0.2f after one hot encoding.',
+                 len(self.feature_importances) - len(self.record_low_importance), self.cumulative_importance)
+        log.info('%d features do not contribute to cumulative importance of %0.2f.',
+                 len(self.ops['low_importance']), self.cumulative_importance)
         
     def identify_all(self, selection_params):
         """
@@ -394,22 +395,21 @@ class FeatureSelector():
         self.all_identified = set(list(chain(*list(self.ops.values()))))
         self.n_identified = len(self.all_identified)
         
-        print('%d total features out of %d identified for removal after one-hot encoding.\n' % (self.n_identified, 
-                                                                                                  self.data_all.shape[1]))
+        log.info('%d total features out of %d identified for removal after one-hot encoding.', self.n_identified, self.data_all.shape[1])
         
     def check_removal(self, keep_one_hot=True):
         
         """Check the identified features before removal. Returns a list of the unique features identified."""
         
         self.all_identified = set(list(chain(*list(self.ops.values()))))
-        print('Total of %d features identified for removal' % len(self.all_identified))
+        log.info('Total of %d features identified for removal', len(self.all_identified))
         
         if not keep_one_hot:
             if self.one_hot_features is None:
-                print('Data has not been one-hot encoded')
+                log.info('Data has not been one-hot encoded')
             else:
                 one_hot_to_remove = [x for x in self.one_hot_features if x not in self.all_identified]
-                print('%d additional one-hot features can be removed' % len(one_hot_to_remove))
+                log.info('%d additional one-hot features can be removed', len(one_hot_to_remove))
         
         return list(self.all_identified)
         
@@ -448,7 +448,7 @@ class FeatureSelector():
             # Need to use one-hot encoded data as well
             data = self.data_all
                                           
-            print('{} methods have been run\n'.format(list(self.ops.keys())))
+            log.info('%s methods have been run', list(self.ops.keys()))
             
             # Find the unique features to drop
             features_to_drop = set(list(chain(*list(self.ops.values()))))
@@ -480,7 +480,7 @@ class FeatureSelector():
         if not keep_one_hot:
             
             if self.one_hot_features is None:
-                print('Data has not been one-hot encoded')
+                log.info('Data has not been one-hot encoded')
             else:
                              
                 features_to_drop = list(set(features_to_drop) | set(self.one_hot_features))
@@ -490,9 +490,9 @@ class FeatureSelector():
         self.removed_features = features_to_drop
         
         if not keep_one_hot:
-        	print('Removed %d features including one-hot features.' % len(features_to_drop))
+		log.info('Removed %d features including one-hot features.', len(features_to_drop))
         else:
-        	print('Removed %d features.' % len(features_to_drop))
+		log.info('Removed %d features.', len(features_to_drop))
         
         return data
     
@@ -629,7 +629,7 @@ class FeatureSelector():
             plt.vlines(x = importance_index + 1, ymin = 0, ymax = 1, linestyles='--', colors = 'blue')
             plt.show();
 
-            print('%d features required for %0.2f of cumulative importance' % (importance_index + 1, threshold))
+            log.info('%d features required for %0.2f of cumulative importance', importance_index + 1, threshold)
 
     def reset_plot(self):
         plt.rcParams = plt.rcParamsDefault

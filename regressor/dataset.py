@@ -16,6 +16,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import Subset
 from torchvision import transforms
 # PL
+from loguru import logger as log
 
 # Transforms
 DATA_TRANSFORMS = {
@@ -50,6 +51,7 @@ class RealDataset(Dataset):
 
         self.root_dir = root_dir
         self.transform = transform
+        log.info('Initialized RealDataset with {} samples from {}', len(self.df), self.root_dir)
 
     def __quantize__(self):
         self.target_quantized = self.target // 100

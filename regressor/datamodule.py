@@ -17,6 +17,7 @@ from torch.utils.data import Dataset
 from torch.utils.data import Subset
 from torchvision import transforms
 # PL
+from loguru import logger as log
 
 # Transforms
 DATA_TRANSFORMS = {
@@ -178,7 +179,7 @@ class RealDataModule(pl.LightningDataModule):
 
         if stage == 'fit':
             self.full_ds: RealDataset = self._prepare_dataset(self.train_src, )
-            print('LEN OF  full_ds : ', len(self.full_ds))
+            log.info('LEN OF full_ds: {}', len(self.full_ds))
             # generate indices: instead of the actual data we pass in integers instead
             train_indices, test_indices, _, _ = train_test_split(
                 range(len(self.full_ds)),
@@ -188,8 +189,8 @@ class RealDataModule(pl.LightningDataModule):
 
             self.ds_train = Subset(self.full_ds, train_indices)
             self.ds_val = Subset(self.full_ds, test_indices)
-            print('DS_TRAIN :', len(self.ds_train))
-            print('DS_VAL :', len(self.ds_val))
+            log.info('DS_TRAIN: {}', len(self.ds_train))
+            log.info('DS_VAL: {}', len(self.ds_val))
 
     def train_dataloader(self):
         return DataLoader(self.ds_train,

@@ -26,3 +26,4 @@ openpyxl
 clearml
 python-Levenshtein
 pre-commit
+loguru

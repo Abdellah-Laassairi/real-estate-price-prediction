@@ -9,12 +9,12 @@ import requests
 import torch
 from PIL import Image
 from rich import progress
-from rich.console import Console
+from loguru import logger as log
 from tqdm import trange
 from transformers import AutoModelForCausalLM
 from transformers import AutoProcessor
 
-console = Console()
+ 
 
 
 def extract_features(data,
@@ -25,11 +25,11 @@ def extract_features(data,
                      device='cuda'):
 
     device = f'{device}:{int(task_id)}'
-    console.log(f'Loading preprocessor {processor_name} for task : {task_id}')
+    log.info(f'Loading preprocessor {processor_name} for task: {task_id}')
     processor = AutoProcessor.from_pretrained(processor_name)
-    console.log(f'Loading model {model_name} for task : {task_id}')
+    log.info(f'Loading model {model_name} for task: {task_id}')
     model = AutoModelForCausalLM.from_pretrained(model_name).to(device)
-    console.log(f'Running inference for : {task_id}')
+    log.info(f'Running inference for task: {task_id}')
 
     results = []
     for i in range(len(data)):
@@ -63,7 +63,7 @@ def extract_features(data,
     with open(f'../data/image_captions/result_test_{task_id}.json', 'w') as fp:
         json.dump(results, fp)
 
-    console.log(f'Finished task {task_id}')
+    log.info(f'Finished task {task_id}')
 
 
 if __name__ == '__main__':
