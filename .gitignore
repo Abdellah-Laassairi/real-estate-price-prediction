@@ -1,3 +1,60 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv/
+venv/
+env/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# Coverage / testing
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDEs / editors
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data (do not commit large datasets)
+data/**
+!data/README.md
+!data/**/README.md
+
+# Model/artifacts
+tb_logs/
+*.pkl
+*.pickle
+*.joblib
+*.onnx
+*.tflite
+*.bin
+
+# MkDocs build
+site/
+
+# RoomNet Android build outputs (if generated)
+RoomNet/**/build/
 data/
 __pycache__/
 *.py[cod]
